@@ -657,9 +657,24 @@ const server = http.createServer(async (req, res) => {
           balance: user.balance || 0,
         });
       }
+      // 支持：选择已有项目进行修改
+      const sourceId = sanitizeText(body.sourceId, 60);
+      const images = Array.isArray(body.images)
+        ? body.images.filter((u) => typeof u === "string" && (u.startsWith("data:image") || /^https?:/i.test(u))).slice(0, 3)
+        : [];
+      let meta = null;
+      let sourceHtml = null;
+      let id = sourceId;
+      if (sourceId) {
+        meta = db.aiGames[sourceId];
+        if (!meta) return json(res, 404, { error: "未找到该项目，或无权访问" });
+        if (meta.ownerId !== user.id) return json(res, 403, { error: "只能修改自己的项目" });
+        const f = path.join(DATA_DIR, "studio", sourceId + ".html");
+        if (fs.existsSync(f)) sourceHtml = fs.readFileSync(f, "utf8");
+      }
       let generation;
       try {
-        generation = await studio.generateGame({ prompt, title });
+        generation = await studio.generateGame({ prompt, title, images, sourceHtml });
       } catch (e) {
         return json(res, 500, { error: "生成失败：" + e.message });
       }
@@ -668,7 +683,7 @@ const server = http.createServer(async (req, res) => {
       if (usedAI && price > 0) {
         user.balance -= price;
       }
-      const id = uid();
+      if (!id) id = uid();
       const dir = path.join(DATA_DIR, "studio");
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(path.join(dir, id + ".html"), generation.html, "utf8");
@@ -678,7 +693,8 @@ const server = http.createServer(async (req, res) => {
         title: generation.title || title || "AI 小游戏",
         prompt,
         usedAI,
-        createdAt: Date.now(),
+        createdAt: meta ? meta.createdAt : Date.now(),
+        updatedAt: Date.now(),
       };
       saveDb();
       return json(res, 201, {
@@ -691,6 +707,17 @@ const server = http.createServer(async (req, res) => {
         price,
         balance: user.balance || 0,
       });
+    }
+
+    // ---- AI 工坊：我的项目列表 ----
+    if (method === "GET" && pathname === "/api/studio/my") {
+      const user = currentUser(req);
+      if (!user) return json(res, 401, { error: "请先登录" });
+      const list = Object.values(db.aiGames)
+        .filter((g) => g.ownerId === user.id)
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .map((g) => ({ id: g.id, title: g.title, prompt: g.prompt, usedAI: !!g.usedAI, createdAt: g.createdAt, url: "/play/" + g.id }));
+      return json(res, 200, { projects: list });
     }
 
     // ---- AI 工坊：发布生成的游戏到网站 ----
@@ -708,6 +735,16 @@ const server = http.createServer(async (req, res) => {
       const tagsArr = Array.isArray(body.tags)
         ? body.tags.map((t) => String(t).trim()).filter(Boolean).slice(0, 8)
         : String(body.tags || "").split(/[,，\s]+/).map((t) => t.trim()).filter(Boolean).slice(0, 8);
+      // 若已发布过同一游戏，改成更新而不是重复创建
+      const existing = db.games.find((g) => g.ownerId === user.id && g.link === "/play/" + id);
+      if (existing) {
+        existing.title = title;
+        existing.description = description;
+        existing.tags = tagsArr;
+        existing.updatedAt = Date.now();
+        saveDb();
+        return json(res, 200, { ok: true, updated: true, game: publicGame(existing) });
+      }
       const now = Date.now();
       const game = {
         id: uid(),
@@ -727,7 +764,7 @@ const server = http.createServer(async (req, res) => {
       };
       db.games.push(game);
       saveDb();
-      return json(res, 201, { ok: true, game: publicGame(game) });
+      return json(res, 201, { ok: true, updated: false, game: publicGame(game) });
     }
 
     // ---- AI 工坊：生成封面（SVG） ----

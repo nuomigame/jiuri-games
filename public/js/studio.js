@@ -12,6 +12,7 @@
   const f = (c) => "¥" + ((Number(c) || 0) / 100).toFixed(2);
   const navAuthBtn = $("#navAuthBtn");
   let me = null, balance = 0, price = 500, currentId = null;
+  let projects = [], currentSourceId = null, images = [];
 
   async function loadMe() {
     const cfg = await api("/api/config");
@@ -28,6 +29,7 @@
       $("#rechargeLink").hidden = !(balance < price);
       $("#genBtn").disabled = false;
       $("#genBtn").textContent = "生成游戏";
+      loadProjects();
     } else {
       navAuthBtn.textContent = "登录 / 注册";
       $("#balanceBtn").hidden = true;
@@ -37,6 +39,43 @@
     }
     $("#balHint").textContent = "余额：" + f(balance);
   }
+
+  async function loadProjects() {
+    const r = await api("/api/studio/my");
+    projects = r.data.projects || [];
+    const sel = $("#projectSelect");
+    sel.innerHTML = '<option value="">＋ 新建一个游戏</option>' + projects.map((p) => `<option value="${p.id}">${escapeHtml(p.title)}${p.usedAI ? "" : "（内置）"}</option>`).join("");
+  }
+  function escapeHtml(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+  $("#projectSelect").addEventListener("change", () => {
+    const id = $("#projectSelect").value;
+    if (!id) { currentSourceId = null; $("#genBtn").textContent = "生成游戏"; return; }
+    const p = projects.find((x) => x.id === id);
+    if (!p) return;
+    currentSourceId = id;
+    $("#titleInput").value = p.title || "";
+    $("#promptInput").value = p.prompt || "";
+    $("#genBtn").textContent = "修改游戏";
+    toast("已选择项目，填写要修改的地方后点「修改游戏」");
+  });
+
+  function renderImages() {
+    $("#imgList").innerHTML = images.map((s, i) => `<span class="shot"><img src="${s}" alt=""><button type="button" data-i="${i}" aria-label="移除">×</button></span>`).join("");
+    $("#imgList").querySelectorAll("button[data-i]").forEach((b) => b.addEventListener("click", () => { images.splice(+b.dataset.i, 1); renderImages(); }));
+  }
+  $("#imgFile").addEventListener("change", () => {
+    const files = [...$("#imgFile").files];
+    $("#imgFile").value = "";
+    if (!files.length) return;
+    for (const f of files) {
+      if (images.length >= 3) { toast("最多 3 张参考图"); break; }
+      if (f.size > 2 * 1024 * 1024) { toast("单张参考图不能超过 2MB"); continue; }
+      const r = new FileReader();
+      r.onload = (ev) => { images.push(ev.target.result); renderImages(); };
+      r.readAsDataURL(f);
+    }
+  });
   navAuthBtn.addEventListener("click", async () => {
     if (navAuthBtn.dataset.logged) { try { await api("/api/logout", { method: "POST", body: "{}" }); } catch (e) {} location.reload(); }
     else location.href = "/";
@@ -51,7 +90,7 @@
     genBtn.disabled = true;
     genBtn.textContent = "AI 生成中…";
     $("#genError").hidden = true;
-    const r = await api("/api/studio/generate", { method: "POST", body: JSON.stringify({ prompt, title }) });
+    const r = await api("/api/studio/generate", { method: "POST", body: JSON.stringify({ prompt, title, sourceId: currentSourceId, images }) });
     if (r.status === 402) {
       $("#genError").textContent = r.data.error || "余额不足";
       $("#genError").hidden = false;
@@ -88,6 +127,7 @@
     const btn = $("#pubBtn"); btn.disabled = true; btn.textContent = "发布中…";
     const r = await api("/api/studio/publish", { method: "POST", body: JSON.stringify({ id: currentId, title, description, tags }) });
     if (!r.ok) { $("#pubError").textContent = (r.data && r.data.error) || "发布失败"; $("#pubError").hidden = false; }
+    else if (r.data.updated) { toast("修改已同步更新到网站，商店里已是最新版"); btn.textContent = "已同步 ✓"; btn.disabled = true; return; }
     else { toast("已发布到网站！去商店看看吧 🎉"); btn.textContent = "已发布 ✓"; btn.disabled = true; setTimeout(() => { location.href = "/store"; }, 900); return; }
     btn.disabled = false; btn.textContent = "发布到网站";
   });

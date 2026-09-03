@@ -64,8 +64,8 @@ function esc(s) {
 // 内置模板游戏（无 AI 时的关键词生成）
 // ---------------------------------------------------------------------------
 function snakeJs(t) {
-  return `const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),S=28,t=14;
-let N,S2=20,dir={x:1,y:0},nd=dir,food=[],alive=true,sc=0;
+  return `const cv=document.getElementById('cv'),ctx=cv.getContext('2d');let S=28,t=14;
+let N=[],S2=20,dir={x:1,y:0},nd=dir,food=[],alive=false,sc=0;
 function rs(){let f;do{f=[Math.floor(Math.random()*t),Math.floor(Math.random()*t)];}while(N.some(p=>p[0]==f[0]&&p[1]==f[1]));food=f;}
 function size(){cv.width=(cv.clientWidth||S2*t);cv.height=(cv.clientHeight||S2*t);S=cv.width/t;}
 function tick(){if(!alive)return;dir=nd;
@@ -73,22 +73,21 @@ let h=[N[0][0]+dir.x,N[0][1]+dir.y];
 if(h[0]<0||h[1]<0||h[0]>=t||h[1]>=t||N.some(p=>p[0]==h[0]&&p[1]==h[1])){alive=false;document.getElementById('overlay').style.display='grid';document.querySelector('#overlay p').textContent='得分 '+sc+' · 点击重新开始';document.querySelector('#overlay h1').textContent='游戏结束';return;}
 N.unshift(h);if(h[0]==food[0]&&h[1]==food[1]){sc+=10;document.getElementById('score').textContent=sc;rs();}else{N.pop();}}
 function draw(){ctx.fillStyle='rgba(255,255,255,.02)';ctx.fillRect(0,0,cv.width,cv.height);
-ctx.fillStyle='${t.acc2}';ctx.beginPath();ctx.arc(food[0]*S+S/2,food[1]*S+S/2,S*0.4,0,7);ctx.fill();
-N.forEach((p,i)=>{ctx.fillStyle=i? '${t.acc}':'#fff';ctx.fillRect(p[0]*S+1,p[1]*S+1,S-2,S-2);});
+if(N.length){ctx.fillStyle='${t.acc2}';ctx.beginPath();ctx.arc(food[0]*S+S/2,food[1]*S+S/2,S*0.4,0,7);ctx.fill();N.forEach((p,i)=>{ctx.fillStyle=i? '${t.acc}':'#fff';ctx.fillRect(p[0]*S+1,p[1]*S+1,S-2,S-2);});}
 requestAnimationFrame(draw);}
 function start(){N=[[7,7],[6,7],[5,7]];dir={x:1,y:0};nd=dir;alive=true;sc=0;document.getElementById('score').textContent=0;rs();document.getElementById('overlay').style.display='none';}
 addEventListener('keydown',e=>{const k=e.key.toLowerCase();
 if(k==='arrowup'||k==='w')nd={x:0,y:-1};else if(k==='arrowdown'||k==='s')nd={x:0,y:1};else if(k==='arrowleft'||k==='a')nd={x:-1,y:0};else if(k==='arrowright'||k==='d')nd={x:1,y:0};e.preventDefault();});
 document.getElementById('overlay').onclick=start;
-size();start();setInterval(tick,130);draw();`;
+size();setInterval(tick,130);draw();`;
 }
 
 function breakoutJs(t) {
   return `const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
-let W,H,pw,ball,r,score=0,rows=6,cols=9,bricks=[],paddle,vel,lose=false;
+let W,H,pw,ball,r,score=0,rows=6,cols=9,bricks=[],paddle,vel,lose=false,started=false;
 function size(){cv.width=W=cv.clientWidth||720;cv.height=H=cv.clientHeight||480;pw=110;ball={x:W/2,y:H-60,r:7,dx:3.4,dy:-3.4};paddle={x:W/2-pw/2};}
 function reset(){bricks=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)bricks.push({x:c*(W/cols)+4,y:r*22+18,w:W/cols-8,h:14,alive:true});lose=false;document.getElementById('score').textContent=0;score=0;}
-function tick(){if(lose)return;ball.x+=ball.dx;ball.y+=ball.dy;
+function tick(){if(!started||lose)return;ball.x+=ball.dx;ball.y+=ball.dy;
 if(ball.x<ball.r||ball.x>W-ball.r)ball.dx*=-1;if(ball.y<ball.r)ball.dy*=-1;
 if(ball.y>H){lose=true;document.getElementById('overlay').style.display='grid';document.querySelector('#overlay h1').textContent='游戏结束';document.querySelector('#overlay p').textContent='得分 '+score+' · 点击重新开始';return;}
 if(ball.y>H-24-ball.r&&ball.y<H-20&&ball.x>paddle.x&&ball.x<paddle.x+pw)ball.dy=-Math.abs(ball.dy);
@@ -99,16 +98,16 @@ ctx.fillStyle='#fff';ctx.fillRect(paddle.x,H-20,pw,8);
 ctx.fillStyle='${t.acc2}';ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,7);ctx.fill();requestAnimationFrame(draw);}
 addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect();paddle.x=Math.max(0,Math.min(W-pw,e.clientX-r.left));});
 addEventListener('touchmove',e=>{const r=cv.getBoundingClientRect();paddle.x=Math.max(0,Math.min(W-pw,e.touches[0].clientX-r.left));},{passive:true});
-document.getElementById('overlay').onclick=()=>{reset();document.getElementById('overlay').style.display='none';};
-size();reset();setInterval(tick,16);draw();`;
+document.getElementById('overlay').onclick=()=>{started=true;reset();document.getElementById('overlay').style.display='none';};
+size();setInterval(tick,16);draw();`;
 }
 
 function catchJs(t) {
   return `const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
-let W,H,px,pw=90,sc=0,drops=[],tick2=0,spd=2.4;
+let W,H,px,pw=90,sc=0,drops=[],tick2=0,spd=2.4,started=false;
 function size(){cv.width=W=cv.clientWidth||720;cv.height=H=cv.clientHeight||480;px=W/2-pw/2;}
 function drop(){drops.push({x:Math.random()*W,y:-20,r:8+Math.random()*6,vy:spd+Math.random()*2});}
-function tick(){tick2++;if(tick2%26===0)drop();
+function tick(){if(!started)return;tick2++;if(tick2%26===0)drop();
 for(let i=drops.length-1;i>=0;i--){const d=drops[i];d.y+=d.vy;
 if(d.y>H-d.r&&d.x>px&&d.x<px+pw){sc+=10;document.getElementById('score').textContent=sc;drops.splice(i,1);}
 else if(d.y>H+20){drops.splice(i,1);}}}
@@ -117,6 +116,7 @@ ctx.fillStyle='#fff';ctx.fillRect(px,H-22,pw,12);
 drops.forEach(d=>{ctx.fillStyle='${t.acc2}';ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,7);ctx.fill();});requestAnimationFrame(draw);}
 addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect();px=Math.max(0,Math.min(W-pw,e.clientX-r.left));});
 addEventListener('touchmove',e=>{const r=cv.getBoundingClientRect();px=Math.max(0,Math.min(W-pw,e.touches[0].clientX-r.left));},{passive:true});
+document.getElementById('overlay').onclick=()=>{started=true;document.getElementById('overlay').style.display='none';};
 size();setInterval(tick,16);draw();`;
 }
 
@@ -130,6 +130,8 @@ ctx.fillStyle='#0a0a0c';ctx.font='bold 44px sans-serif';ctx.textAlign='center';c
 ctx.fillStyle='rgba(255,255,255,.6)';ctx.font='16px sans-serif';ctx.fillText('点击方块获得能量',W/2,H/2+70);requestAnimationFrame(draw);}
 function click(){sc+=power;combo=Math.min(120,combo+6);document.getElementById('score').textContent=sc;if(sc>=up+100){power++;up=sc;document.title='能量 ×'+power;}}
 cv.addEventListener('mousedown',click);cv.addEventListener('touchstart',e=>{e.preventDefault();click();},{passive:false});
+document.getElementById('overlay').onclick=()=>{document.getElementById('overlay').style.display='none';};
+document.getElementById('overlay').style.display='none';
 size();draw();`;
 }
 
@@ -164,25 +166,43 @@ function extractHtml(content) {
   return c;
 }
 
-async function callAI(prompt, title) {
+function buildUserContent(title, prompt, images) {
+  const text = "游戏标题：" + (title || "未命名小游戏") + "\n需求：" + prompt;
+  if (images && images.length) {
+    return [
+      { type: "text", text },
+      ...images.slice(0, 4).map((u) => ({ type: "image_url", image_url: { url: u } })),
+    ];
+  }
+  return text;
+}
+
+async function callAI({ prompt, title, images, sourceHtml }) {
   const key = process.env.AI_API_KEY;
   if (!key) throw new Error("未配置 AI_API_KEY");
   const base = (process.env.AI_BASE_URL || "https://api.deepseek.com").replace(/\/+$/, "");
   const model = process.env.AI_MODEL || "deepseek-chat";
-  const sys = "你是一个网页游戏生成器。请根据用户的提示词，输出一个完整、可运行的、单文件 HTML5 小游戏。要求：把所有 CSS 和 JavaScript 内联在一个 <html> 文件里；不要用外部库或网络请求；用中文；界面简洁现代；有开始界面和分数。只输出代码本身，不要额外解释。";
-  const res = await fetch(base + "/chat/completions", {
+  const sys = sourceHtml
+    ? "你是一个网页游戏修改器。用户给你一个现有的单文件 HTML5 小游戏以及修改要求。请在原代码基础上按要求修改，输出修改后的完整、可运行、单文件 HTML5 游戏。所有 CSS 和 JS 内联；不用外部库或网络请求；中文界面；只输出代码本身。"
+    : "你是一个网页游戏生成器。请根据用户的提示词，输出一个完整、可运行的、单文件 HTML5 小游戏。要求：把所有 CSS 和 JavaScript 内联在一个 <html> 文件里；不要用外部库或网络请求；用中文；界面简洁现代；有开始界面和分数。只输出代码本身，不要额外解释。";
+  const messages = [{ role: "system", content: sys }];
+  if (sourceHtml) messages.push({ role: "user", content: "现有游戏代码：\n```html\n" + String(sourceHtml).slice(0, 12000) + "\n```\n请在其基础上按后一条需求修改，只输出修改后的完整单文件 html。" });
+  messages.push({ role: "user", content: buildUserContent(title, prompt, images) });
+  const body = { model, temperature: 0.8, max_tokens: 6000, messages };
+  const post = (m) => fetch(base + "/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
-    body: JSON.stringify({
-      model,
-      temperature: 0.8,
-      max_tokens: 5000,
-      messages: [
-        { role: "system", content: sys },
-        { role: "user", content: `游戏标题：${title || "未命名小游戏"}\n提示词：${prompt}` },
-      ],
-    }),
+    body: JSON.stringify(m),
   });
+  let res = await post(body);
+  // 若模型不支持图片，则去掉图片重试（退化为纯文字）
+  if (!res.ok && images && images.length) {
+    const noImg = messages.map((m) => ({
+      role: m.role,
+      content: typeof m.content === "string" ? m.content : (m.content || []).filter((p) => p.type === "text").map((p) => p.text).join("\n"),
+    }));
+    res = await post({ ...body, messages: noImg });
+  }
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
     throw new Error("AI 接口错误 " + res.status + " " + txt.slice(0, 200));
@@ -195,19 +215,20 @@ async function callAI(prompt, title) {
 // ---------------------------------------------------------------------------
 // 对外入口
 // ---------------------------------------------------------------------------
-async function generateGame({ prompt, title }) {
+async function generateGame({ prompt, title, images, sourceHtml }) {
   const pt = (prompt || "").trim() || "一个简单好玩的接水果小游戏";
   const t = (title || "").trim() || "AI 生成小游戏";
   if (process.env.AI_API_KEY) {
     try {
-      const html = await callAI(pt, t);
-      return { html, title: t, note: "AI 生成", usedAI: true };
+      const html = await callAI({ prompt: pt, title: t, images, sourceHtml });
+      return { html, title: t, note: sourceHtml ? "AI 修改" : "AI 生成", usedAI: true };
     } catch (e) {
-      // AI 失败时回退到内置生成器
+      if (sourceHtml) return { html: sourceHtml, title: t, usedAI: false, note: "AI 修改失败，已保留原游戏：" + e.message };
       const fb = proceduralGame(pt, t);
       return { ...fb, usedAI: false, note: "AI 生成失败，已用内置生成器：" + e.message };
     }
   }
+  if (sourceHtml) return { html: sourceHtml, title: t, usedAI: false, note: "未配置 AI 密钥，无法修改" };
   const fb = proceduralGame(pt, t);
   return { ...fb, title: t, usedAI: false };
 }

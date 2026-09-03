@@ -41,11 +41,22 @@
     <div class="studio-grid">
       <section class="studio-card">
         <h2 class="card-h">① 描述你的游戏</h2>
+        <label class="field"><span class="field-label">我的项目（可选，选一个来修改之前用 AI 生成的游戏）</span><select id="projectSelect"><option value="">＋ 新建一个游戏</option></select></label>
         <label class="field"><span class="field-label">游戏名称（选填）</span><input type="text" id="titleInput" maxlength="40" placeholder="例如：金币猎人" /></label>
         <label class="field">
           <span class="field-label">提示词 *（越具体越像你想要的样子）</span>
           <textarea id="promptInput" rows="5" maxlength="1200" placeholder="例如：做一个像素风贪吃蛇游戏，绿色主题，速度越来越快，吃金币得分"></textarea>
         </label>
+        <div class="cover-block">
+          <span class="field-label">参考图（可选，可多张，给 AI 参考风格）</span>
+          <div class="cover-row">
+            <div class="shot-list" id="imgList"></div>
+            <div class="cover-controls">
+              <label class="upload-btn"><input type="file" id="imgFile" accept="image/*" multiple hidden />添加参考图</label>
+              <p class="cover-hint">最多 3 张。当前 DeepSeek 模型暂不识别图片，将按你写的文字要求处理。</p>
+            </div>
+          </div>
+        </div>
         <div class="studio-meta">
           <span id="priceHint">每次生成：¥5.00</span>
           <span id="balHint">余额：¥0.00</span>
