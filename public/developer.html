@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>开发者中心 · 爱冒险玖日</title>
+  <link rel="icon" href="/assets/img/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/admin.css?v=4" />
+  <style>
+    .apply-card { max-width: 640px; margin: 40px auto; }
+    .apply-card .lead { color: var(--muted); line-height: 1.7; margin: -6px 0 20px; }
+    .apply-done { text-align: center; padding: 40px 20px; color: var(--txt-2); }
+    .apply-done b { display: block; font-size: 20px; margin-bottom: 10px; color: var(--accent); }
+    .switcher { display: flex; gap: 8px; }
+    .switcher button {
+      flex: 1; height: 44px; border-radius: var(--radius-sm);
+      background: rgba(255,255,255,0.04); border: 1px solid var(--line);
+      color: var(--txt-2); font-family: var(--font); font-size: 14px; cursor: pointer;
+      transition: background .2s, border-color .2s, color .2s;
+    }
+    .switcher button.is-active { background: var(--accent); color: #0a0a0c; border-color: var(--accent); }
+    .pill.warn { background: rgba(240,163,90,0.14); color: var(--warm); border-color: rgba(240,163,90,0.4); }
+    .pill.dev { background: rgba(200,240,75,0.12); color: var(--accent); border-color: var(--accent-line); }
+  </style>
+</head>
+<body>
+  <!-- Login gate -->
+  <div class="gate" id="gate" hidden>
+    <div class="gate-panel">
+      <div class="gate-logo"><img src="/assets/img/logo.png" alt="" /></div>
+      <h1 class="gate-title">开发者中心</h1>
+      <p class="gate-sub">登录后可申请成为开发者，或管理你发布的游戏</p>
+      <form class="gate-form" id="gateForm">
+        <label class="field"><span class="field-label">用户名</span><input type="text" name="username" autocomplete="username" required /></label>
+        <label class="field"><span class="field-label">密码</span><input type="password" name="password" autocomplete="current-password" required /></label>
+        <p class="form-error" id="gateError" hidden></p>
+        <button class="btn btn-primary btn-block" type="submit">进入开发者中心</button>
+      </form>
+      <a class="gate-back" href="/">← 返回网站</a>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="dash" id="dash" hidden>
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-logo"><img src="/assets/img/logo.png" alt="" /></span>
+        <span class="topbar-title">爱冒险玖日 · 开发者中心</span>
+      </div>
+      <div class="topbar-right">
+        <a class="btn btn-ghost btn-sm" href="/" target="_blank" rel="noopener">查看网站 ↗</a>
+        <button class="btn btn-ghost btn-sm" id="logoutBtn">退出登录</button>
+      </div>
+    </header>
+
+    <main class="content">
+      <!-- Apply -->
+      <section class="card apply-card" id="applyCard" hidden>
+        <div class="card-head"><h2>申请成为开发者</h2></div>
+        <p class="lead">成为开发者后，你可以自行发布作品：填写<strong>网页游戏地址</strong>（点开即玩）或<strong>百度网盘下载链接</strong>（需下载到电脑运行），两者任选其一。发布的游戏会先展示在网站首页，等待管理员审核。</p>
+        <form id="applyForm" class="editor-form">
+          <label class="field"><span class="field-label">你想上传/分享什么游戏？介绍一下</span>
+            <textarea name="message" rows="4" maxlength="300" placeholder="例如：我做了一款平台跳跃游戏，是一个网页游戏……"></textarea>
+          </label>
+          <p class="form-error" id="applyError" hidden></p>
+          <div class="editor-actions">
+            <a class="btn btn-ghost" href="/">返回网站</a>
+            <button type="submit" class="btn btn-primary" id="applyBtn">提交申请</button>
+          </div>
+        </form>
+      </section>
+      <div class="apply-done" id="applyDone" hidden>
+        <b>申请已提交</b>
+        <p>你的开发者申请正在等待管理员审核，请稍后在「网站账号」处查看到结果。</p>
+        <a class="btn btn-ghost" href="/">返回网站</a>
+      </div>
+
+      <!-- Manager -->
+      <div id="manager" hidden>
+        <div class="content-head">
+          <div><p class="kicker">我的作品</p><h1 class="page-title">游戏管理</h1></div>
+          <button class="btn btn-primary" id="createBtn">+ 发布游戏</button>
+        </div>
+        <p class="muted" id="managerHint" style="margin:0 0 22px;color:var(--muted)"></p>
+
+        <section class="card">
+          <div class="card-head"><h2>我发布的游戏</h2><span class="card-count" id="myCount">0 款</span></div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>封面</th><th>游戏</th><th>类型</th><th>状态</th><th class="ta-r">操作</th></tr></thead>
+              <tbody id="myGames"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="myEmpty" hidden>你还没有发布过游戏，点击右上角「发布游戏」开始吧。</div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Create / Edit Modal -->
+  <div class="modal" id="editor" hidden>
+    <div class="modal-backdrop" data-close-editor></div>
+    <div class="modal-panel modal-wide">
+      <button class="modal-close" data-close-editor aria-label="关闭">×</button>
+      <p class="kicker" id="editorKicker">发布游戏</p>
+      <h2 class="modal-title" id="editorTitle">发布新游戏</h2>
+      <form class="editor-form" id="editorForm">
+        <input type="hidden" name="id" />
+        <label class="field"><span class="field-label">游戏类型 *</span></label>
+        <div class="switcher" id="typeSwitch">
+          <button type="button" data-type="web" class="is-active">网页游戏 · 点开即玩</button>
+          <button type="button" data-type="download">需下载 · 电脑运行</button>
+        </div>
+        <label class="field">
+          <span class="field-label">游戏名称 *</span>
+          <input type="text" name="title" required maxlength="80" placeholder="例如：光之迷宫" />
+        </label>
+        <label class="field">
+          <span class="field-label" id="linkLabel">网页游戏地址 *</span>
+          <input type="url" name="link" id="linkInput" required placeholder="https://... 网页游戏地址" />
+        </label>
+        <label class="field"><span class="field-label">简介</span><textarea name="description" rows="3" maxlength="600" placeholder="一句话介绍这个游戏"></textarea></label>
+        <div class="cover-block">
+          <span class="field-label">封面图</span>
+          <div class="cover-row">
+            <div class="cover-preview" id="coverPreview"><img src="/assets/img/card-default.jpg" alt="" /><input type="hidden" name="cover" id="coverData" value="/assets/img/card-default.jpg" /></div>
+            <div class="cover-controls">
+              <label class="upload-btn"><input type="file" id="coverFile" accept="image/*" hidden />上传封面</label>
+              <p class="cover-hint">支持 JPG / PNG / WebP，小于 8MB。也可直接粘贴图片链接：</p>
+              <input type="text" id="coverUrl" placeholder="https://... 或直接填链接" />
+            </div>
+          </div>
+        </div>
+        <label class="field"><span class="field-label">标签（用逗号分隔）</span><input type="text" name="tags" id="tagsInput" placeholder="冒险, 像素, 竞速" /></label>
+        <label class="check"><input type="checkbox" name="featured" id="featuredInput" /><span>设为精选（优先展示）</span></label>
+        <p class="form-error" id="editorError" hidden></p>
+        <div class="editor-actions">
+          <button type="button" class="btn btn-ghost" data-close-editor>取消</button>
+          <button type="submit" class="btn btn-primary" id="saveBtn">发布游戏</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="/js/developer.js?v=1"></script>
+</body>
+</html>

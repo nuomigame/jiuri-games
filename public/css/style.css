@@ -345,6 +345,64 @@ body::before {
 }
 .carousel-btn:hover { background: var(--accent); color: #0a0a0c; border-color: var(--accent); transform: translateY(-2px); }
 
+/* games toolbar: search + category filter */
+.games-toolbar {
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  margin-top: 26px;
+}
+.games-searchbox { flex: 1 1 300px; max-width: 420px; position: relative; }
+.games-search {
+  width: 100%; height: 48px; padding: 0 16px 0 44px;
+  border-radius: 999px; background: var(--bg-2);
+  border: 1px solid var(--line); color: var(--txt);
+  font-family: var(--font); font-size: 14px; outline: none;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+.games-searchbox .search-ico {
+  position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+  color: var(--muted); font-size: 18px; line-height: 1; pointer-events: none;
+}
+.games-search:focus { border-color: var(--accent-line); box-shadow: 0 0 0 4px var(--accent-soft); background: var(--bg-3); }
+.games-search::placeholder { color: var(--muted); }
+.games-cats { display: flex; flex-wrap: wrap; gap: 8px; }
+.cat-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 36px; padding: 0 14px; border-radius: 999px;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--line);
+  color: var(--txt-2); font-family: var(--font); font-size: 13px; cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+}
+.cat-chip em { font-style: normal; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.cat-chip:hover { border-color: var(--accent-line); color: var(--txt); transform: translateY(-1px); }
+.cat-chip.is-active { background: var(--accent); color: #0a0a0c; border-color: var(--accent); }
+.cat-chip.is-active em { color: rgba(10,10,12,0.65); }
+
+/* game card title + like button */
+.game-titlebar { display: flex; align-items: flex-start; gap: 12px; justify-content: space-between; }
+.game-titlebar .game-title { line-height: 1.3; }
+.game-like {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 10px; margin-top: 2px; border-radius: 999px;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--line);
+  color: var(--muted); cursor: pointer; font-family: var(--font);
+  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.2s;
+}
+.game-like .like-ico { font-size: 13px; line-height: 1; color: var(--warm); transform: translateY(-1px); }
+.game-like .like-n { font-family: var(--font-mono); font-size: 12px; }
+.game-like:hover { border-color: var(--accent-line); color: var(--txt); transform: translateY(-1px); }
+.game-like.is-liked { background: var(--accent-soft); border-color: var(--accent-line); color: var(--txt); }
+.game-like.is-liked .like-ico { color: var(--accent); }
+.game-like:disabled { opacity: 0.6; cursor: default; transform: none; }
+.game-pending {
+  position: absolute; top: 12px; right: 12px;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em;
+  color: #0a0a0c; background: var(--warm);
+  padding: 4px 9px; border-radius: 999px;
+}
+.game-dl-note {
+  margin-top: 12px; font-family: var(--font-mono); font-size: 11px; color: var(--warm);
+}
+
 .ticker {
   margin-top: 40px;
   border-top: 1px solid var(--line-soft);
@@ -460,6 +518,16 @@ body::before {
 }
 .field input:focus { border-color: var(--accent-line); box-shadow: 0 0 0 4px var(--accent-soft); }
 .form-error { color: #ff8a8a; font-size: 13px; }
+.field textarea {
+  background: rgba(255,255,255,0.04); border: 1px solid var(--line);
+  border-radius: 12px; padding: 14px 16px; color: var(--txt); font-size: 15px; font-family: var(--font);
+  outline: none; resize: vertical; transition: border-color 0.2s, box-shadow 0.2s;
+}
+.field textarea:focus { border-color: var(--accent-line); box-shadow: 0 0 0 4px var(--accent-soft); }
+.modal-title { font-size: 24px; font-weight: 800; letter-spacing: -0.01em; margin: 6px 0 14px; }
+.modal-prose { font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 22px; }
+.modal-prose strong { color: var(--txt); }
+.modal-actions { display: flex; gap: 10px; margin-top: 6px; }
 .toast {
   position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
   z-index: 1600; background: #15151a; border: 1px solid var(--line);

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/admin.css?v=3" />
+  <link rel="stylesheet" href="/css/admin.css?v=5" />
 </head>
 <body>
   <!-- Gate -->
@@ -58,6 +58,8 @@
       <div class="stat-row" id="statRow">
         <div class="stat"><b id="statGames">0</b><span>游戏总数</span></div>
         <div class="stat"><b id="statFeatured">0</b><span>精选游戏</span></div>
+        <div class="stat"><b id="statPending">0</b><span>待审核游戏</span></div>
+        <div class="stat"><b id="statApps">0</b><span>开发者申请</span></div>
         <div class="stat"><b id="statUsers">0</b><span>注册用户</span></div>
       </div>
 
@@ -73,7 +75,9 @@
                 <th>封面</th>
                 <th>游戏</th>
                 <th>标签</th>
+                <th>类型</th>
                 <th>状态</th>
+                <th>归属</th>
                 <th>链接</th>
                 <th class="ta-r">操作</th>
               </tr>
@@ -82,6 +86,19 @@
           </table>
         </div>
         <div class="empty" id="gamesEmpty" hidden>还没有游戏，点击右上角「创建游戏」开始吧。</div>
+      </section>
+
+      <section class="card" id="appsCard">
+        <div class="card-head"><h2>开发者申请</h2><span class="card-count" id="appsCount">0 条</span></div>
+        <div class="table-wrap">
+          <table class="table table-sm">
+            <thead>
+              <tr><th>用户名</th><th>邮箱</th><th>说明</th><th class="ta-r">申请时间</th><th class="ta-r">操作</th></tr>
+            </thead>
+            <tbody id="appsBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="appsEmpty" hidden>暂时没有待处理的开发者申请。</div>
       </section>
 
       <section class="card">
@@ -122,9 +139,14 @@
           <input type="text" name="title" required maxlength="80" placeholder="例如：光之迷宫" />
         </label>
         <label class="field">
-          <span class="field-label">游戏链接 *</span>
-          <input type="url" name="link" required placeholder="https://... 网页游戏地址" />
+          <span class="field-label" id="linkLabel">游戏链接 *</span>
+          <input type="url" name="link" id="linkInput" required placeholder="https://... 网页游戏地址" />
         </label>
+        <label class="field"><span class="field-label">游戏类型 *</span></label>
+        <div class="switcher" id="typeSwitch">
+          <button type="button" data-type="web" class="is-active">网页游戏 · 点开即玩</button>
+          <button type="button" data-type="download">需下载 · 电脑运行</button>
+        </div>
         <label class="field">
           <span class="field-label">简介</span>
           <textarea name="description" rows="3" maxlength="600" placeholder="一句话介绍这个游戏"></textarea>
@@ -168,6 +190,6 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="/js/admin.js?v=3"></script>
+  <script src="/js/admin.js?v=5"></script>
 </body>
 </html>

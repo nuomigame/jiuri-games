@@ -90,15 +90,16 @@
 
   // ---------- rendering ----------
   async function refreshAll() {
-    const [g, u] = await Promise.all([loadGames(), loadUsers()]);
-    $("#statGames").textContent = g.length;
+    const [g, u, a] = await Promise.all([loadGames(), loadUsers(), loadApplications()]);
     $("#statFeatured").textContent = g.filter((x) => x.featured).length;
     $("#gameCountReal").textContent = g.length + " 款";
   }
 
   async function loadGames() {
-    const data = await api("/api/games");
+    const data = await api("/api/admin/games");
     games = data.games;
+    $("#statGames").textContent = games.length;
+    $("#statPending").textContent = data.pending || 0;
     const body = $("#gamesBody");
     const empty = $("#gamesEmpty");
     if (!games.length) { body.innerHTML = ""; empty.hidden = false; return games; }
@@ -106,16 +107,33 @@
     body.innerHTML = games.map((g) => {
       const cover = g.cover || DEFAULT_COVER;
       const tags = (g.tags || []).map((t) => `<span>${esc(t)}</span>`).join("");
+      const isPending = g.status === "pending";
+      const typePill = g.type === "download"
+        ? '<span class="pill">需下载</span>'
+        : '<span class="pill dev">网页游戏</span>';
+      const statusPill = isPending
+        ? '<span class="pill warn">待审核</span>'
+        : '<span class="pill on">已上架</span>';
+      const ownerPill = g.ownerName
+        ? `<span class="pill dev">${esc(g.ownerName)}</span>`
+        : '<span class="pill">官方</span>';
+      let actions = ``
+        + `<button class="btn btn-ghost btn-mini" data-edit="${esc(g.id)}">编辑</button>`
+        + `<button class="btn btn-danger btn-mini" data-del="${esc(g.id)}">删除</button>`;
+      if (isPending) {
+        actions = `<button class="btn btn-primary btn-mini" data-approve="${esc(g.id)}">通过</button>`
+          + `<button class="btn btn-danger btn-mini" data-reject="${esc(g.id)}">驳回并删除</button>`
+          + `<button class="btn btn-ghost btn-mini" data-edit="${esc(g.id)}">编辑</button>`;
+      }
       return `<tr data-id="${esc(g.id)}">
         <td><img class="cover-thumb" src="${esc(cover)}" onerror="this.src='${DEFAULT_COVER}'" alt=""></td>
-        <td><div class="game-row-title"><b>${esc(g.title)}</b><span>${esc(g.link)}</span></div></td>
+        <td><div class="game-row-title"><b>${g.featured ? "★ " : ""}${esc(g.title)}</b><span>${esc(g.link)}</span></div></td>
         <td><div class="tag-list">${tags || '<span style="color:#666">—</span>'}</div></td>
-        <td><span class="pill ${g.featured ? "on" : "off"}">${g.featured ? "精选" : "普通"}</span></td>
+        <td>${typePill}</td>
+        <td>${statusPill}</td>
+        <td>${ownerPill}</td>
         <td><span class="link-cell">${esc(shortLink(g.link))}</span></td>
-        <td class="ta-r"><div class="row-actions">
-          <button class="btn btn-ghost btn-mini" data-edit="${esc(g.id)}">编辑</button>
-          <button class="btn btn-danger btn-mini" data-del="${esc(g.id)}">删除</button>
-        </div></td>
+        <td class="ta-r"><div class="row-actions">${actions}</div></td>
       </tr>`;
     }).join("");
     return games;
@@ -130,10 +148,12 @@
         ? `<button class="btn ${u.role === "admin" ? "btn-danger" : "btn-ghost"} btn-mini" data-role="${esc(u.id)}" data-newrole="${u.role === "admin" ? "user" : "admin"}">${u.role === "admin" ? "取消管理员" : "设为管理员"}</button>`
         : `<span class="pill on">主管理员</span>`;
       const delBtn = canEdit ? `<button class="btn btn-danger btn-mini" data-deluser="${esc(u.id)}">删除</button>` : "";
+      const roleClass = u.role === "admin" ? "on" : u.role === "developer" ? "dev" : "off";
+      const roleLabel = u.role === "admin" ? "管理员" : u.role === "developer" ? "开发者" : "用户";
       return `<tr>
       <td class="game-row-title"><b>${esc(u.username)}</b></td>
       <td class="desc-cell">${esc(u.email || "—")}</td>
-      <td><span class="pill ${u.role === "admin" ? "on" : "off"}">${u.role === "admin" ? "管理员" : "用户"}</span></td>
+      <td><span class="pill ${roleClass}">${roleLabel}</span></td>
       <td class="ta-r link-cell">${fmtDate(u.createdAt)}</td>
       <td class="ta-r"><div class="row-actions">${roleBtn}${delBtn}</div></td>
     </tr>`;
@@ -143,6 +163,41 @@
     return data.users;
   }
 
+  async function loadApplications() {
+    const data = await api("/api/admin/applications");
+    const apps = data.applications;
+    $("#statApps").textContent = apps.length;
+    $("#appsCount").textContent = apps.length + " 条";
+    const body = $("#appsBody");
+    const empty = $("#appsEmpty");
+    if (!apps.length) { body.innerHTML = ""; empty.hidden = false; return apps; }
+    empty.hidden = true;
+    body.innerHTML = apps.map((a) => `<tr>
+      <td class="game-row-title"><b>${esc(a.username)}</b></td>
+      <td class="desc-cell">${esc(a.email || "—")}</td>
+      <td class="desc-cell">${esc(a.message)}</td>
+      <td class="ta-r link-cell">${fmtDate(a.createdAt)}</td>
+      <td class="ta-r"><div class="row-actions">
+        <button class="btn btn-primary btn-mini" data-app="approve" data-id="${esc(a.id)}">同意</button>
+        <button class="btn btn-danger btn-mini" data-app="reject" data-id="${esc(a.id)}">拒绝</button>
+      </div></td>
+    </tr>`).join("");
+    return apps;
+  }
+
+  $("#appsBody").addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-app]");
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const action = btn.dataset.app;
+    if (!confirm(action === "approve" ? "确定同意这位用户成为开发者吗？" : "确定拒绝这位用户的开发者申请吗？")) return;
+    try {
+      await api(`/api/admin/applications/${id}/${action}`, { method: "POST", body: "{}" });
+      toast(action === "approve" ? "已同意，该用户成为开发者" : "已拒绝该申请");
+      await refreshAll();
+    } catch (err) { toast(err.message); }
+  });
+
   // ---------- editor ----------
   const editor = $("#editor");
   const editorForm = $("#editorForm");
@@ -151,6 +206,15 @@
   const coverUrlInput = $("#coverUrl");
   const coverFile = $("#coverFile");
   let savedCover = DEFAULT_COVER;
+  let gameType = "web";
+
+  function setType(t) {
+    gameType = t;
+    $$("#typeSwitch button").forEach((b) => b.classList.toggle("is-active", b.dataset.type === t));
+    $("#linkLabel").textContent = t === "download" ? "百度网盘下载链接 *" : "游戏链接 *";
+    $("#linkInput").placeholder = t === "download" ? "https://pan.baidu.com/s/... 下载链接" : "https://... 网页游戏地址";
+  }
+  $$("#typeSwitch button").forEach((b) => b.addEventListener("click", () => setType(b.dataset.type)));
 
   function setCoverPreview(src) {
     coverPreviewImg.src = src || DEFAULT_COVER;
@@ -169,6 +233,7 @@
       $("#tagsInput").value = (game.tags || []).join(", ");
       $("#featuredInput").checked = !!game.featured;
       editorForm.querySelector('[name=id]').value = game.id || "";
+      setType(game.type === "download" ? "download" : "web");
       if (game.cover && /^(https?:)?\/\//i.test(game.cover)) {
         coverUrlInput.value = game.cover;
         setCoverPreview(game.cover);
@@ -181,6 +246,7 @@
       $("#editorTitle").textContent = "新建游戏";
       editorForm.reset();
       editorForm.querySelector('[name=id]').value = "";
+      setType("web");
       setCoverPreview(DEFAULT_COVER);
     }
     editor.hidden = false;
@@ -226,6 +292,7 @@
       tags: $("#tagsInput").value,
       featured: $("#featuredInput").checked,
       cover,
+      type: gameType,
     };
     editorError.hidden = true;
     const btn = $("#saveBtn");
@@ -252,8 +319,32 @@
 
   // ---------- table actions ----------
   $("#gamesBody").addEventListener("click", async (e) => {
+    const approveBtn = e.target.closest("[data-approve]");
+    const rejectBtn = e.target.closest("[data-reject]");
     const editBtn = e.target.closest("[data-edit]");
     const delBtn = e.target.closest("[data-del]");
+    if (approveBtn) {
+      const g = games.find((x) => x.id === approveBtn.dataset.approve);
+      if (!g) return;
+      if (!confirm(`确定通过《${g.title}》？通过后将长期展示在首页。`)) return;
+      try {
+        await api(`/api/admin/games/${g.id}/approve`, { method: "POST", body: "{}" });
+        toast("已通过审核");
+        await refreshAll();
+      } catch (err) { toast(err.message); }
+      return;
+    }
+    if (rejectBtn) {
+      const g = games.find((x) => x.id === rejectBtn.dataset.reject);
+      if (!g) return;
+      if (!confirm(`确定驳回并删除《${g.title}》？此操作不可撤销。`)) return;
+      try {
+        await api(`/api/admin/games/${g.id}/reject`, { method: "POST", body: "{}" });
+        toast("已驳回并删除");
+        await refreshAll();
+      } catch (err) { toast(err.message); }
+      return;
+    }
     if (editBtn) {
       const g = games.find((x) => x.id === editBtn.dataset.edit);
       if (g) openEditor(g);

@@ -182,9 +182,63 @@
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
-  function renderGames(games) {
+  const searchInput = $("#gamesSearch");
+  const catsWrap = $("#gamesCats");
+  let allGames = [];
+  let searchTerm = "";
+  let searchTimer;
+  let activeCat = "全部";
+
+  function sortedAndFiltered() {
+    const q = searchTerm.trim().toLowerCase();
+    let list = allGames.slice();
+    if (q) {
+      list = list.filter((g) =>
+        (g.title || "").toLowerCase().includes(q) ||
+        (g.description || "").toLowerCase().includes(q) ||
+        (g.tags || []).some((t) => t.toLowerCase().includes(q)));
+    }
+    if (activeCat && activeCat !== "全部") {
+      const want = activeCat.toLowerCase();
+      list = list.filter((g) => (g.tags || []).some((t) => t.toLowerCase() === want));
+    }
+    // 赞多的排前面；同赞数的：精选靠前，其次最新靠前
+    list.sort((a, b) => {
+      const la = Number(a.likes) || 0, lb = Number(b.likes) || 0;
+      if (la !== lb) return lb - la;
+      if (!!a.featured !== !!b.featured) return a.featured ? -1 : 1;
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    });
+    return list;
+  }
+
+  function buildCats() {
+    const counts = new Map();
+    allGames.forEach((g) => (g.tags || []).forEach((t) => {
+      const k = String(t).trim();
+      if (k) counts.set(k, (counts.get(k) || 0) + 1);
+    }));
+    const names = [...counts.keys()].sort((a, b) => a.localeCompare(b, "zh"));
+    const chips = [["全部", allGames.length], ...names.map((n) => [n, counts.get(n)])];
+    catsWrap.innerHTML = chips.map(([c, n]) =>
+      `<button class="cat-chip ${c === activeCat ? "is-active" : ""}" data-cat="${esc(c)}">
+         <span>${esc(c)}</span><em>${n}</em>
+       </button>`).join("");
+  }
+
+  function renderGames() {
+    const games = sortedAndFiltered();
     const empty = $("#gamesEmpty");
-    if (!games.length) { track.innerHTML = ""; empty.hidden = false; return; }
+    if (!allGames.length) {
+      track.innerHTML = ""; empty.hidden = false;
+      empty.querySelector("p").textContent = "暂时还没有可游玩的游戏，敬请期待。";
+      return;
+    }
+    if (!games.length) {
+      track.innerHTML = ""; empty.hidden = false;
+      empty.querySelector("p").textContent = "没有找到匹配的游戏，换个关键词或类别试试。";
+      return;
+    }
     empty.hidden = true;
     const fallbackCover = IS_STATIC ? "assets/img/card-default.jpg" : "/assets/img/card-default.jpg";
     track.innerHTML = games.map((g) => {
@@ -193,49 +247,84 @@
       const url = external ? g.link : "";
       const tags = (g.tags || []).slice(0, 3).map((t) => `<span>${esc(t)}</span>`).join("");
       const isDemo = !external;
+      const likes = Number(g.likes) || 0;
+      const liked = !!g.liked;
+      const isDownload = g.type === "download";
+      const pending = g.status === "pending";
       return `
         <article class="game-card" role="button" tabindex="0" data-url="${esc(url)}" data-demo="${isDemo ? "1" : ""}" data-title="${esc(g.title)}">
           <div class="game-cover">
             <img src="${esc(cover)}" alt="${esc(g.title)}" loading="lazy" onerror="this.src='${fallbackCover}'">
-            <span class="game-cover-tag">${g.featured ? "Featured" : "Playable"}</span>
-            <div class="game-play"><span>▶</span></div>
+            <span class="game-cover-tag">${isDownload ? "需下载 · 电脑运行" : "网页游戏"}</span>
+            ${pending ? '<span class="game-pending">待审核</span>' : ""}
+            <div class="game-play"><span>${isDownload ? "⤓" : "▶"}</span></div>
           </div>
           <div class="game-body">
-            <h3 class="game-title">${esc(g.title)}</h3>
+            <div class="game-titlebar">
+              <h3 class="game-title">${esc(g.title)}</h3>
+              <button class="game-like ${liked ? "is-liked" : ""}" data-id="${esc(g.id)}" data-liked="${liked ? "1" : "0"}" aria-label="${liked ? "取消点赞" : "点赞"}">
+                <span class="like-ico" aria-hidden="true">♥</span><span class="like-n">${likes}</span>
+              </button>
+            </div>
             <p class="game-desc">${esc(g.description)}</p>
             <div class="game-tags">${tags}</div>
+            ${isDownload ? '<p class="game-dl-note">⬇ 需下载到电脑运行</p>' : ""}
           </div>
         </article>`;
     }).join("");
   }
+
   async function loadGames() {
     try {
       const data = IS_STATIC
         ? { games: window.GAMES_DATA || [] }
         : await api("/api/games");
-      renderGames(data.games);
+      allGames = data.games || [];
+      buildCats();
+      renderGames();
     } catch (e) {
       toast("加载游戏失败：" + e.message);
     }
   }
-  track.addEventListener("click", (e) => {
-    if (justDragged) { e.preventDefault(); return; }
-    const card = e.target.closest(".game-card");
-    if (!card) return;
-    if (card.dataset.demo === "1") {
-      toast(`《${card.dataset.title}》 即将上线，敬请期待`);
-      return;
+
+  async function handleLike(btn) {
+    if (IS_STATIC) { toast("当前为静态版，点赞请使用完整版"); return; }
+    const id = btn.dataset.id;
+    const g = allGames.find((x) => x.id === id);
+    if (!g) return;
+    if (!state.user) { toast("请先登录后再点赞"); openAuth(); return; }
+    btn.disabled = true;
+    try {
+      const data = await api(`/api/games/${id}/like`, { method: "POST", body: "{}" });
+      g.likes = data.likes;
+      g.liked = data.liked;
+      renderGames();
+      buildCats();
+    } catch (err) {
+      toast(err.message);
+      btn.disabled = false;
     }
-    const url = card.dataset.url;
-    if (url && /^(https?:)?\/\//i.test(url)) {
-      // 只弹出新窗口，原页面保持不变
-      const win = window.open(url, "_blank", "noopener");
-      if (!win) toast("浏览器拦截了弹窗，请允许弹出窗口后重试");
-    }
+  }
+
+  searchInput.addEventListener("input", () => {
+    searchTerm = searchInput.value;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(renderGames, 120);
   });
+  catsWrap.addEventListener("click", (e) => {
+    const chip = e.target.closest(".cat-chip");
+    if (!chip) return;
+    activeCat = chip.dataset.cat;
+    buildCats();
+    renderGames();
+  });
+
+  loadGames();
+
   // keyboard support (Enter/Space) for the card role="button"
   track.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" && e.key !== " ") return;
+    if (e.target.closest(".game-like")) return; // let the native button handle its own click
     const card = e.target.closest(".game-card");
     if (!card) return;
     e.preventDefault();
@@ -249,7 +338,23 @@
       if (!win) toast("浏览器拦截了弹窗，请允许弹出窗口后重试");
     }
   });
-  loadGames();
+  track.addEventListener("click", (e) => {
+    if (justDragged) { e.preventDefault(); return; }
+    const likeBtn = e.target.closest(".game-like");
+    if (likeBtn) { handleLike(likeBtn); return; }
+    const card = e.target.closest(".game-card");
+    if (!card) return;
+    if (card.dataset.demo === "1") {
+      toast(`《${card.dataset.title}》 即将上线，敬请期待`);
+      return;
+    }
+    const url = card.dataset.url;
+    if (url && /^(https?:)?\/\//i.test(url)) {
+      // 只弹出新窗口，原页面保持不变
+      const win = window.open(url, "_blank", "noopener");
+      if (!win) toast("浏览器拦截了弹窗，请允许弹出窗口后重试");
+    }
+  });
 
   // Refetch games when the page becomes visible again (tab switch / back /
   // bfcache restore) so admin edits (e.g. new covers) show up immediately.
@@ -323,8 +428,16 @@
       const ml = $("#manageLink");
       ml.hidden = !isAdmin;
       if (!isAdmin) toast("欢迎回来，" + state.user.username);
+      const devBtn = $("#devEntry");
+      devBtn.hidden = false;
+      const isDev = state.user.role === "developer" || isAdmin;
+      const pendingApp = state.devApp && state.devApp.status === "pending";
+      if (isDev) { devBtn.textContent = "开发者中心"; devBtn.dataset.mode = "center"; }
+      else if (pendingApp) { devBtn.textContent = "申请审核中"; devBtn.dataset.mode = "pending"; }
+      else { devBtn.textContent = "申请开发者"; devBtn.dataset.mode = "apply"; }
     } else {
       navAuthBtn.textContent = "登录 / 注册";
+      $("#devEntry").hidden = true;
     }
   }
 
@@ -345,7 +458,9 @@
       const path = state.authMode === "login" ? "/api/login" : "/api/register";
       const body = state.authMode === "login" ? { username, password } : { username, password, email };
       const data = await api(path, { method: "POST", body: JSON.stringify(body) });
-      state.user = data.user;
+      const me = await api("/api/me");
+      state.user = me.user;
+      state.devApp = me.devApplication;
       updateAuthUI();
       closeAuth();
       toast(state.authMode === "login" ? "登录成功" : "注册成功，欢迎加入！");
@@ -365,10 +480,54 @@
     if (state.user) {
       try { await api("/api/logout", { method: "POST", body: "{}" }); } catch (e) {}
       state.user = null;
+      state.devApp = null;
       updateAuthUI();
       toast("已退出登录");
     } else {
       openAuth();
+    }
+  });
+
+  // ---------- developer entry + apply ----------
+  const devApplyModal = $("#devApplyModal");
+  function openDevApply() {
+    devApplyModal.hidden = false;
+    document.body.style.overflow = "hidden";
+    setTimeout(() => devApplyModal.querySelector("textarea")?.focus(), 60);
+  }
+  function closeDevApply() {
+    devApplyModal.hidden = true;
+    document.body.style.overflow = "";
+  }
+  $$("[data-close-dev]").forEach((el) => el.addEventListener("click", closeDevApply));
+
+  $("#devEntry").addEventListener("click", () => {
+    if (!state.user) { openAuth(); return; }
+    const mode = $("#devEntry").dataset.mode;
+    if (mode === "center") { location.href = "/developer"; return; }
+    if (mode === "pending") { toast("申请已提交，等待管理员审核"); return; }
+    openDevApply();
+  });
+
+  $("#devApplyForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (IS_STATIC) { toast("静态版不支持申请，请使用完整版"); return; }
+    const message = (new FormData(e.target).get("message") || "").trim();
+    const btn = $("#devApplyBtn");
+    const err = $("#devApplyError");
+    btn.disabled = true; btn.textContent = "提交中…"; err.hidden = true;
+    try {
+      await api("/api/developer/apply", { method: "POST", body: JSON.stringify({ message }) });
+      closeDevApply();
+      const me = await api("/api/me");
+      state.user = me.user;
+      state.devApp = me.devApplication;
+      updateAuthUI();
+      toast("申请已提交，等待管理员审核");
+    } catch (ex) {
+      err.textContent = ex.message; err.hidden = false;
+    } finally {
+      btn.disabled = false; btn.textContent = "提交申请";
     }
   });
 
@@ -381,6 +540,7 @@
     try {
       const data = await api("/api/me");
       state.user = data.user;
+      state.devApp = data.devApplication;
     } catch (e) {}
     updateAuthUI();
   })();

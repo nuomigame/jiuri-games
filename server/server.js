@@ -44,9 +44,14 @@ function loadDb() {
       secret: crypto.randomBytes(32).toString("hex"),
       users: [],
       games: [],
+      applications: [],
     };
     saveDb();
   }
+  // upgrade: ensure new fields exist even for an existing database
+  if (!Array.isArray(db.applications)) db.applications = [];
+  db.games = (db.games || []).map((g) => Object.assign({ type: "web", ownerId: null, status: (g.status || "approved") }, g));
+  db.users = (db.users || []).map((u) => Object.assign({ liked: [] }, u));
   ensureAdmin();
 }
 
@@ -74,6 +79,7 @@ function ensureAdmin() {
       passHash: hash,
       role: "admin",
       createdAt: Date.now(),
+      liked: [],
     });
     saveDb();
   }
@@ -93,6 +99,7 @@ function createUser({ username, password, email = "" }) {
     passHash: hashPassword(password, salt),
     role: "user",
     createdAt: Date.now(),
+    liked: [],
   };
 }
 
@@ -222,11 +229,24 @@ function removeUploadedCover(cover) {
 }
 
 function publicUser(u) {
-  return { id: u.id, username: u.username, email: u.email, role: u.role, createdAt: u.createdAt };
+  return {
+    id: u.id,
+    username: u.username,
+    email: u.email,
+    role: u.role,
+    createdAt: u.createdAt,
+    liked: Array.isArray(u.liked) ? u.liked : [],
+  };
 }
 
 function publicGame(g) {
-  return { ...g, tags: Array.isArray(g.tags) ? g.tags : [] };
+  return {
+    ...g,
+    tags: Array.isArray(g.tags) ? g.tags : [],
+    likes: Number(g.likes) || 0,
+    type: g.type === "download" ? "download" : "web",
+    status: g.status === "pending" ? "pending" : "approved",
+  };
 }
 
 function requireAdmin(req, res) {
@@ -245,6 +265,7 @@ function validateGameInput(body) {
   if (!link) throw Object.assign(new Error("请填写游戏链接"), { status: 400 });
   const description = sanitizeText(body.description, 600) || "一款新鲜出炉的网页游戏，点开即玩。";
   const cover = normalizeCover(body.cover);
+  const type = body.type === "download" ? "download" : "web";
   let tags = [];
   if (typeof body.tags === "string") {
     tags = body.tags.split(/[,，\s]+/).map((t) => t.trim()).filter(Boolean).slice(0, 8);
@@ -252,7 +273,7 @@ function validateGameInput(body) {
     tags = body.tags.map((t) => String(t).trim()).filter(Boolean).slice(0, 8);
   }
   const featured = body.featured === true || body.featured === "true";
-  return { title, link, description, cover, tags, featured };
+  return { title, link, description, cover, tags, featured, type };
 }
 
 // ---------------------------------------------------------------------------
@@ -281,33 +302,36 @@ const MIME = {
 function serveStatic(req, res, pathname) {
   let rel = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
   if (pathname === "/admin" || pathname === "/admin/") rel = "admin.html";
-  const dirs = [PUBLIC, UPLOADS];
-  for (const base of dirs) {
-    const safe = path.normalize(path.join(base, rel));
-    if (!safe.startsWith(base)) continue;
+  if (pathname === "/developer" || pathname === "/developer/") rel = "developer.html";
+  // 上传的封面存放在 UPLOADS（映射到 `/uploads/...`），其它静态资源在 PUBLIC。
+  // 上传路径的磁盘名要去掉 `uploads/` 前缀（否则会拼成 uploads/uploads/xxx）。
+  const isUpload = rel.startsWith("uploads/");
+  const dirs = isUpload ? [UPLOADS, PUBLIC] : [PUBLIC, UPLOADS];
+  let i = 0;
+  (function tryNext() {
+    if (i >= dirs.length) return handleNotFound(res);
+    const base = dirs[i++];
+    const relForBase = (base === UPLOADS && isUpload) ? rel.slice("uploads/".length) : rel;
+    const safe = path.normalize(path.join(base, relForBase));
+    if (!safe.startsWith(base)) return tryNext();
     fs.stat(safe, (err, stats) => {
-      if (!err && stats.isFile()) {
-        const ext = path.extname(safe).toLowerCase();
-        const type = MIME[ext] || "application/octet-stream";
-        const lastMod = stats.mtime.toUTCString();
-        const ims = req.headers["if-modified-since"];
-        const codeCache = ext === ".html" || ext === ".css" || ext === ".js" || ext === ".mjs" || ext === ".json";
-        const cache = codeCache ? "no-cache" : "public, max-age=86400";
-        // 304 if the client already has an unchanged copy
-        if (ims && codeCache && stats.mtime.getTime() <= new Date(ims).getTime()) {
-          res.writeHead(304, { "Last-Modified": lastMod, "Cache-Control": cache });
-          return res.end();
-        }
-        res.writeHead(200, { "Content-Type": type, "Cache-Control": cache, "Last-Modified": lastMod });
-        if (req.method === "HEAD") return res.end();
-        fs.createReadStream(safe).pipe(res);
-      } else {
-        handleNotFound(res);
+      if (err || !stats.isFile()) return tryNext();
+      const ext = path.extname(safe).toLowerCase();
+      const type = MIME[ext] || "application/octet-stream";
+      const lastMod = stats.mtime.toUTCString();
+      const ims = req.headers["if-modified-since"];
+      const codeCache = ext === ".html" || ext === ".css" || ext === ".js" || ext === ".mjs" || ext === ".json";
+      const cache = codeCache ? "no-cache" : "public, max-age=86400";
+      // 304 if the client already has an unchanged copy
+      if (ims && codeCache && stats.mtime.getTime() <= new Date(ims).getTime()) {
+        res.writeHead(304, { "Last-Modified": lastMod, "Cache-Control": cache });
+        return res.end();
       }
+      res.writeHead(200, { "Content-Type": type, "Cache-Control": cache, "Last-Modified": lastMod });
+      if (req.method === "HEAD") return res.end();
+      return fs.createReadStream(safe).pipe(res);
     });
-    return;
-  }
-  handleNotFound(res);
+  })();
 }
 
 function handleNotFound(res) {
@@ -369,16 +393,149 @@ const server = http.createServer(async (req, res) => {
 
     if (method === "GET" && pathname === "/api/me") {
       const user = currentUser(req);
-      return json(res, 200, { user: user ? publicUser(user) : null });
+      if (!user) return json(res, 200, { user: null, devApplication: null });
+      const app = db.applications.find((a) => a.userId === user.id && a.status === "pending");
+      return json(res, 200, {
+        user: publicUser(user),
+        devApplication: app
+          ? { status: "pending" }
+          : (user.role === "developer" ? { status: "approved" } : null),
+      });
     }
 
     // ---- Games (public) ----
     if (method === "GET" && pathname === "/api/games") {
+      const cur = currentUser(req);
+      const likedSet = new Set(Array.isArray(cur && cur.liked) ? cur.liked : []);
+      const byId = new Map(db.users.map((u) => [u.id, u.username]));
+      const rank = (g) => (g.status === "pending" ? 0 : 1);
       const games = [...db.games].sort((a, b) => {
-        if (a.featured !== b.featured) return a.featured ? -1 : 1;
+        const ra = rank(a), rb = rank(b);
+        if (ra !== rb) return ra - rb;                          // 待审核优先展示
+        if (ra === 0) return (b.createdAt || 0) - (a.createdAt || 0); // 待审核按最新在前
+        const la = Number(a.likes) || 0, lb = Number(b.likes) || 0;
+        if (la !== lb) return lb - la;                          // 已上架按赞多优先
+        if (!!a.featured !== !!b.featured) return a.featured ? -1 : 1;
         return (b.createdAt || 0) - (a.createdAt || 0);
       });
-      return json(res, 200, { games: games.map(publicGame) });
+      return json(res, 200, {
+        games: games.map((g) => Object.assign(publicGame(g), {
+          liked: likedSet.has(g.id),
+          ownerName: g.ownerId ? (byId.get(g.ownerId) || "") : "",
+        })),
+      });
+    }
+
+    // ---- Like / unlike a game (requires login) ----
+    if (method === "POST" && pathname.startsWith("/api/games/") && pathname.endsWith("/like")) {
+      const user = currentUser(req);
+      if (!user) return json(res, 401, { error: "请先登录后再点赞" });
+      const id = decodeURIComponent(pathname.split("/")[3] || "");
+      const game = db.games.find((g) => g.id === id);
+      if (!game) return json(res, 404, { error: "游戏不存在" });
+      if (!Array.isArray(user.liked)) user.liked = [];
+      const idx = user.liked.indexOf(id);
+      let liked;
+      if (idx === -1) {
+        user.liked.push(id);
+        game.likes = (Number(game.likes) || 0) + 1;
+        liked = true;
+      } else {
+        user.liked.splice(idx, 1);
+        game.likes = Math.max(0, (Number(game.likes) || 0) - 1);
+        liked = false;
+      }
+      saveDb();
+      return json(res, 200, { ok: true, likes: Number(game.likes) || 0, liked });
+    }
+
+    // ---- Developer: apply to become a developer ----
+    if (method === "POST" && pathname === "/api/developer/apply") {
+      const user = currentUser(req);
+      if (!user) return json(res, 401, { error: "请先登录" });
+      if (user.role === "developer" || user.role === "admin") {
+        return json(res, 400, { error: "你已经是开发者或管理员了" });
+      }
+      if (db.applications.some((a) => a.userId === user.id && a.status === "pending")) {
+        return json(res, 409, { error: "申请已提交，等待管理员审核" });
+      }
+      const body = await parseJson(req);
+      const message = sanitizeText(body.message, 300) || "（未填写说明）";
+      db.applications.push({
+        id: uid(),
+        userId: user.id,
+        username: user.username,
+        email: user.email || "",
+        message,
+        createdAt: Date.now(),
+        status: "pending",
+      });
+      saveDb();
+      return json(res, 201, { ok: true });
+    }
+
+    // ---- Developer: my games ----
+    if (method === "GET" && pathname === "/api/developer/my") {
+      const user = currentUser(req);
+      if (!user || (user.role !== "developer" && user.role !== "admin")) {
+        return json(res, 403, { error: "需要开发者权限" });
+      }
+      const games = db.games
+        .filter((g) => g.ownerId === user.id)
+        .map(publicGame)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      return json(res, 200, { games });
+    }
+
+    // ---- Developer: create own game (pending review) ----
+    if (method === "POST" && pathname === "/api/developer/games") {
+      const user = currentUser(req);
+      if (!user || user.role !== "developer") return json(res, 403, { error: "需要开发者权限" });
+      const body = await parseJson(req);
+      const data = validateGameInput(body);
+      const now = Date.now();
+      const game = { id: uid(), ...data, ownerId: user.id, status: "pending", createdAt: now, updatedAt: now };
+      db.games.push(game);
+      saveDb();
+      return json(res, 201, { game: publicGame(game) });
+    }
+
+    // ---- Developer: edit own game ----
+    if (method === "PUT" && pathname.startsWith("/api/developer/games/")) {
+      const user = currentUser(req);
+      if (!user || user.role !== "developer") return json(res, 403, { error: "需要开发者权限" });
+      const id = decodeURIComponent(pathname.split("/").pop());
+      const idx = db.games.findIndex((g) => g.id === id);
+      if (idx === -1) return json(res, 404, { error: "游戏不存在" });
+      if (db.games[idx].ownerId !== user.id) return json(res, 403, { error: "只能修改自己发布的游戏" });
+      const body = await parseJson(req);
+      const data = validateGameInput(body);
+      if (db.games[idx].cover && data.cover && db.games[idx].cover !== data.cover) {
+        removeUploadedCover(db.games[idx].cover);
+      }
+      Object.assign(db.games[idx], data, { updatedAt: Date.now(), status: "pending" });
+      saveDb();
+      return json(res, 200, { game: publicGame(db.games[idx]) });
+    }
+
+    // ---- Developer: delete own game ----
+    if (method === "DELETE" && pathname.startsWith("/api/developer/games/")) {
+      const user = currentUser(req);
+      if (!user || user.role !== "developer") return json(res, 403, { error: "需要开发者权限" });
+      const id = decodeURIComponent(pathname.split("/").pop());
+      const idx = db.games.findIndex((g) => g.id === id);
+      if (idx === -1) return json(res, 404, { error: "游戏不存在" });
+      if (db.games[idx].ownerId !== user.id) return json(res, 403, { error: "只能删除自己发布的游戏" });
+      const [g] = db.games.splice(idx, 1);
+      removeUploadedCover(g.cover);
+      db.users.forEach((u) => {
+        if (Array.isArray(u.liked)) {
+          const i = u.liked.indexOf(g.id);
+          if (i > -1) u.liked.splice(i, 1);
+        }
+      });
+      saveDb();
+      return json(res, 200, { ok: true });
     }
 
     // ---- Admin ----
@@ -389,6 +546,71 @@ const server = http.createServer(async (req, res) => {
     if (pathname.startsWith("/api/admin")) {
       const admin = requireAdmin(req, res);
       if (!admin) return;
+
+      // ---- Developer applications ----
+      if (method === "GET" && pathname === "/api/admin/applications") {
+        const apps = db.applications
+          .filter((a) => a.status === "pending")
+          .sort((a, b) => b.createdAt - a.createdAt);
+        return json(res, 200, { applications: apps });
+      }
+      const applyM = pathname.match(/^\/api\/admin\/applications\/([^/]+)\/(approve|reject)$/);
+      if (method === "POST" && applyM) {
+        const id = decodeURIComponent(applyM[1]);
+        const action = applyM[2];
+        const app = db.applications.find((a) => a.id === id);
+        if (!app) return json(res, 404, { error: "申请不存在" });
+        if (action === "approve") {
+          const user = db.users.find((u) => u.id === app.userId);
+          if (user) user.role = "developer";
+          app.status = "approved";
+        } else {
+          app.status = "rejected";
+        }
+        saveDb();
+        return json(res, 200, { ok: true });
+      }
+
+      // ---- Admin: full game list (with owner + review info) ----
+      if (method === "GET" && pathname === "/api/admin/games") {
+        const byId = new Map(db.users.map((u) => [u.id, u.username]));
+        const games = db.games
+          .map((g) => Object.assign(publicGame(g), { ownerName: g.ownerId ? (byId.get(g.ownerId) || "") : "" }))
+          .sort((a, b) => {
+            const ra = a.status === "pending" ? 0 : 1, rb = b.status === "pending" ? 0 : 1;
+            if (ra !== rb) return ra - rb;
+            return (b.createdAt || 0) - (a.createdAt || 0);
+          });
+        return json(res, 200, {
+          games,
+          pending: db.games.filter((g) => g.status === "pending").length,
+        });
+      }
+
+      // ---- Admin: approve / reject a submitted game ----
+      const gameM = pathname.match(/^\/api\/admin\/games\/([^/]+)\/(approve|reject)$/);
+      if (method === "POST" && gameM) {
+        const id = decodeURIComponent(gameM[1]);
+        const action = gameM[2];
+        const idx = db.games.findIndex((g) => g.id === id);
+        if (idx === -1) return json(res, 404, { error: "游戏不存在" });
+        if (action === "approve") {
+          db.games[idx].status = "approved";
+          saveDb();
+          return json(res, 200, { ok: true, game: publicGame(db.games[idx]) });
+        }
+        // reject => 直接删除
+        const [g] = db.games.splice(idx, 1);
+        removeUploadedCover(g.cover);
+        db.users.forEach((u) => {
+          if (Array.isArray(u.liked)) {
+            const i = u.liked.indexOf(g.id);
+            if (i > -1) u.liked.splice(i, 1);
+          }
+        });
+        saveDb();
+        return json(res, 200, { ok: true });
+      }
 
       if (method === "POST" && pathname === "/api/admin/password") {
         const body = await parseJson(req);
@@ -445,7 +667,7 @@ const server = http.createServer(async (req, res) => {
         const body = await parseJson(req);
         const data = validateGameInput(body);
         const now = Date.now();
-        const game = { id: uid(), ...data, createdAt: now, updatedAt: now };
+        const game = { id: uid(), ...data, ownerId: null, status: "approved", createdAt: now, updatedAt: now };
         db.games.push(game);
         saveDb();
         return json(res, 201, { game: publicGame(game) });
@@ -469,6 +691,12 @@ const server = http.createServer(async (req, res) => {
         if (idx === -1) return json(res, 404, { error: "游戏不存在" });
         const [g] = db.games.splice(idx, 1);
         removeUploadedCover(g.cover);
+        db.users.forEach((u) => {
+          if (Array.isArray(u.liked)) {
+            const i = u.liked.indexOf(g.id);
+            if (i > -1) u.liked.splice(i, 1);
+          }
+        });
         saveDb();
         return json(res, 200, { ok: true });
       }

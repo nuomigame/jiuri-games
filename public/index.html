@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css?v=2" />
+  <link rel="stylesheet" href="/css/style.css?v=3" />
 </head>
 <body>
   <div class="site-grain" aria-hidden="true"></div>
@@ -29,6 +29,7 @@
         <a href="#contact">联系</a>
       </nav>
       <div class="nav-actions">
+        <button class="btn btn-ghost user-btn" id="devEntry" hidden>开发者中心</button>
         <button class="btn btn-ghost user-btn" id="navAuthBtn">登录 / 注册</button>
         <a class="btn btn-primary" href="#contact">开始探索</a>
       </div>
@@ -79,6 +80,14 @@
             <button class="carousel-btn" id="gamesNext" aria-label="下一批">›</button>
           </div>
         </div>
+      </div>
+      <div class="games-toolbar" id="gamesToolbar">
+        <label class="games-searchbox" for="gamesSearch">
+          <span class="search-ico" aria-hidden="true">⌕</span>
+          <input class="games-search" id="gamesSearch" type="search"
+            placeholder="搜索游戏名称 / 简介 / 标签" autocomplete="off">
+        </label>
+        <div class="games-cats" id="gamesCats" aria-label="按类别筛选"></div>
       </div>
     </div>
     <div class="carousel-wrap">
@@ -202,8 +211,30 @@
     </div>
   </div>
 
+  <!-- ============ DEV APPLY MODAL ============ -->
+  <div class="modal" id="devApplyModal" hidden>
+    <div class="modal-backdrop" data-close-dev></div>
+    <div class="modal-panel">
+      <button class="modal-close" data-close-dev aria-label="关闭">×</button>
+      <p class="kicker">成为开发者</p>
+      <h2 class="modal-title">申请成为游戏开发者</h2>
+      <p class="modal-prose">成为开发者后，你可以自行发布作品：填写<strong>网页游戏地址</strong>（点开即玩）或<strong>百度网盘下载链接</strong>（需下载到电脑运行），两者任选其一。发布的游戏会先展示在首页，等待管理员审核。</p>
+      <form class="auth-form" id="devApplyForm">
+        <label class="field">
+          <span class="field-label">介绍一下你想分享的游戏</span>
+          <textarea name="message" rows="4" maxlength="300" placeholder="例如：我做了一款平台跳跃网页游戏……"></textarea>
+        </label>
+        <p class="form-error" id="devApplyError" hidden></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" data-close-dev>取消</button>
+          <button type="submit" class="btn btn-primary btn-block" id="devApplyBtn">提交申请</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="toast" id="toast" hidden></div>
 
-  <script src="/js/app.js?v=5"></script>
+  <script src="/js/app.js?v=7"></script>
 </body>
 </html>
