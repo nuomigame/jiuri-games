@@ -233,7 +233,12 @@ async function generateGame({ prompt, title, images, sourceHtml }) {
   if (process.env.AI_API_KEY) {
     try {
       const r = await callAI({ prompt: pt, title: t, images, sourceHtml });
-      return { html: makeOffline(r.html), title: t, note: sourceHtml ? "AI 修改" : "AI 生成", usedAI: true, usage: r.usage };
+      const out = makeOffline(r.html);
+      // 校验：AI 返回必须是完整的游戏（足够长且含脚本/画布），否则视为失败
+      if (out.length < 1200 || !/<script[\s>]/i.test(out)) {
+        throw new Error("AI 返回内容过短或非完整游戏代码");
+      }
+      return { html: out, title: t, note: sourceHtml ? "AI 修改" : "AI 生成", usedAI: true, usage: r.usage };
     } catch (e) {
       if (sourceHtml) throw new Error("AI 修改失败：" + e.message);
       const fb = proceduralGame(pt, t);
