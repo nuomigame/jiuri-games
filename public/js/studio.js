@@ -58,14 +58,26 @@
 
   $("#projectSelect").addEventListener("change", () => {
     const id = $("#projectSelect").value;
-    if (!id) { currentSourceId = null; $("#genBtn").textContent = "生成游戏"; $("#projectTools").hidden = true; return; }
+    if (!id) {
+      currentSourceId = null;
+      $("#genBtn").textContent = "生成游戏";
+      $("#projectTools").hidden = true;
+      $("#projHistory").hidden = true;
+      $("#promptInput").value = "";
+      $("#promptInput").placeholder = "例如：做一个像素风贪吃蛇游戏，绿色主题，速度越来越快，吃金币得分";
+      return;
+    }
     const p = projects.find((x) => x.id === id);
     if (!p) return;
     currentSourceId = id;
     $("#titleInput").value = p.title || "";
-    $("#promptInput").value = p.prompt || "";
+    $("#promptInput").value = "";
+    $("#promptInput").placeholder = "输入本次要修改/新增的要求（系统会结合之前所有要求）";
     $("#genBtn").textContent = "修改游戏";
     $("#projectTools").hidden = false;
+    const his = (p.history && p.history.length ? p.history : [p.prompt]).filter((h) => h && h.trim());
+    $("#projHistory").innerHTML = "<b>修改记录（供你查看，不会重复生成）：</b>" + his.map((h, i) => `<div>${i + 1}. ${escapeHtml(h)}</div>`).join("");
+    $("#projHistory").hidden = false;
     toast("已选择项目，填写要修改的地方后点「修改游戏」");
   });
   $("#deleteProjectBtn").addEventListener("click", async () => {

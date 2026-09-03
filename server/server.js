@@ -794,12 +794,20 @@ const server = http.createServer(async (req, res) => {
         const f = path.join(DATA_DIR, "studio", sourceId + ".html");
         if (fs.existsSync(f)) sourceHtml = fs.readFileSync(f, "utf8");
       }
+      // 每次修改都记录进历史，并让 AI 结合全部累积要求，避免推倒重来
+      let aiPrompt = prompt;
+      let history = [prompt];
+      if (meta) {
+        history = (Array.isArray(meta.history) ? meta.history.slice() : [meta.prompt || ""]).filter(Boolean);
+        history.push(prompt);
+        aiPrompt = history.join("\n");
+      }
       let generation;
       try {
         const models = db.models
           .filter((m) => m.visibility === "public" || m.ownerId === user.id)
           .map((m) => ({ name: m.name, url: "/models/" + m.file }));
-        generation = await studio.generateGame({ prompt, title, images, sourceHtml, models });
+        generation = await studio.generateGame({ prompt: aiPrompt, title, images, sourceHtml, models });
       } catch (e) {
         return json(res, 500, { error: "生成失败：" + e.message });
       }
@@ -827,7 +835,8 @@ const server = http.createServer(async (req, res) => {
         id,
         ownerId: user.id,
         title: generation.title || title || "AI 小游戏",
-        prompt,
+        prompt: aiPrompt,
+        history,
         usedAI,
         createdAt: meta ? meta.createdAt : Date.now(),
         updatedAt: Date.now(),
@@ -858,7 +867,7 @@ const server = http.createServer(async (req, res) => {
       const list = Object.values(db.aiGames)
         .filter((g) => g.ownerId === user.id)
         .sort((a, b) => b.createdAt - a.createdAt)
-        .map((g) => ({ id: g.id, title: g.title, prompt: g.prompt, usedAI: !!g.usedAI, createdAt: g.createdAt, url: "/play/" + g.id }));
+        .map((g) => ({ id: g.id, title: g.title, prompt: g.prompt, history: Array.isArray(g.history) ? g.history : [g.prompt], usedAI: !!g.usedAI, createdAt: g.createdAt, url: "/play/" + g.id }));
       return json(res, 200, { projects: list });
     }
 
