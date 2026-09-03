@@ -1,0 +1,8 @@
+node_modules
+.git
+build
+data
+uploads
+shot-*.png
+*.md
+.gitignore

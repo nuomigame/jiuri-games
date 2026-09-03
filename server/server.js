@@ -1,0 +1,514 @@
+// 爱冒险玖日 · 游戏网站 — 轻量后端（纯 Node 内置模块，无第三方依赖）
+"use strict";
+
+const http = require("http");
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
+
+const ROOT = path.join(__dirname, "..");
+const PUBLIC = path.join(ROOT, "public");
+// 部署时可通过环境变量指定持久化目录（例如挂载的卷），默认保存在项目内
+const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, "data");
+const UPLOADS = process.env.DATA_DIR ? path.join(DATA_DIR, "uploads") : path.join(ROOT, "uploads");
+const DB_FILE = path.join(DATA_DIR, "db.json");
+
+const PORT = process.env.PORT || 3009;
+const HOST = process.env.HOST || "0.0.0.0";
+// 可部署时用环境变量设置更强的管理员初始密码（仅当数据库里还没有管理员时生效）
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "QQ13944655076";
+const SESSION_DAYS = 30;
+const MAX_BODY = 20 * 1024 * 1024; // 20MB
+
+// ---------------------------------------------------------------------------
+// Database (JSON)
+// ---------------------------------------------------------------------------
+function ensureDirs() {
+  for (const d of [PUBLIC, UPLOADS, DATA_DIR]) {
+    if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+  }
+}
+
+let db = null;
+function loadDb() {
+  ensureDirs();
+  if (fs.existsSync(DB_FILE)) {
+    try {
+      db = JSON.parse(fs.readFileSync(DB_FILE, "utf8"));
+    } catch (e) {
+      db = null;
+    }
+  }
+  if (!db || typeof db !== "object") {
+    db = {
+      secret: crypto.randomBytes(32).toString("hex"),
+      users: [],
+      games: [],
+    };
+    saveDb();
+  }
+  ensureAdmin();
+}
+
+function saveDb() {
+  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf8");
+}
+
+function uid() {
+  return crypto.randomUUID();
+}
+
+// ---------------------------------------------------------------------------
+// Auth helpers
+// ---------------------------------------------------------------------------
+const PRUNE_SECRET = "prune:admin:2026";
+function ensureAdmin() {
+  if (!db.users || !db.users.some((u) => u.role === "admin" && u.username === "admin")) {
+    const salt = crypto.randomBytes(16).toString("hex");
+    const hash = crypto.scryptSync(ADMIN_PASSWORD, salt, 64).toString("hex");
+    db.users.push({
+      id: uid(),
+      username: "admin",
+      email: "",
+      salt,
+      passHash: hash,
+      role: "admin",
+      createdAt: Date.now(),
+    });
+    saveDb();
+  }
+}
+
+function hashPassword(password, salt) {
+  return crypto.scryptSync(String(password), salt, 64).toString("hex");
+}
+
+function createUser({ username, password, email = "" }) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  return {
+    id: uid(),
+    username,
+    email,
+    salt,
+    passHash: hashPassword(password, salt),
+    role: "user",
+    createdAt: Date.now(),
+  };
+}
+
+function signToken(payload) {
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const sig = crypto.createHmac("sha256", db.secret).update(body).digest("base64url");
+  return `${body}.${sig}`;
+}
+
+function verifyToken(token) {
+  if (!token || typeof token !== "string") return null;
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [body, sig] = parts;
+  const expect = crypto.createHmac("sha256", db.secret).update(body).digest("base64url");
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expect);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+    if (payload.exp && payload.exp < Date.now()) return null;
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+function parseCookies(req) {
+  const out = {};
+  const raw = req.headers.cookie || "";
+  for (const part of raw.split(";")) {
+    const i = part.indexOf("=");
+    if (i === -1) continue;
+    const k = part.slice(0, i).trim();
+    const v = part.slice(i + 1).trim();
+    if (k) out[k] = decodeURIComponent(v);
+  }
+  return out;
+}
+
+function currentUser(req) {
+  const token = parseCookies(req).sid;
+  const payload = verifyToken(token);
+  if (!payload) return null;
+  return db.users.find((u) => u.id === payload.uid) || null;
+}
+
+function cookieFor(token, maxAgeSeconds) {
+  return `sid=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}`;
+}
+
+// ---------------------------------------------------------------------------
+// Utility
+// ---------------------------------------------------------------------------
+function json(res, status, data) {
+  const body = JSON.stringify(data);
+  res.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+  });
+  res.end(body);
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > MAX_BODY) {
+        const e = new Error("Body too large");
+        e.status = 413;
+        reject(e);
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    req.on("error", reject);
+  });
+}
+
+async function parseJson(req) {
+  const raw = await readBody(req);
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    const err = new Error("Invalid JSON");
+    err.status = 400;
+    throw err;
+  }
+}
+
+function sanitizeText(value, max = 300) {
+  return String(value == null ? "" : value).replace(/[<>]/g, "").slice(0, max).trim();
+}
+
+function normalizeCover(cover) {
+  // Accept a URL, a server path, or a base64 data URL.
+  if (!cover || typeof cover !== "string") return "";
+  cover = cover.trim();
+  if (cover.startsWith("/uploads/")) return cover;
+  const m = cover.match(/^data:(image\/(png|jpe?g|webp|gif));base64,(.+)$/i);
+  if (m) {
+    let ext = m[2].toLowerCase() === "jpeg" || m[2].toLowerCase() === "jpg" ? "jpg" : m[2].toLowerCase();
+    if (ext === "jpeg") ext = "jpg";
+    if (ext === "svg") ext = "png";
+    const buf = Buffer.from(m[3], "base64");
+    if (buf.length > 8 * 1024 * 1024) throw Object.assign(new Error("图片太大"), { status: 413 });
+    const name = `${Date.now()}-${crypto.randomBytes(4).toString("hex")}.${ext}`;
+    fs.writeFileSync(path.join(UPLOADS, name), buf);
+    return `/uploads/${name}`;
+  }
+  if (/^(https?:)?\/\//i.test(cover)) return cover;
+  return "";
+}
+
+function removeUploadedCover(cover) {
+  if (cover && cover.startsWith("/uploads/")) {
+    const f = path.join(UPLOADS, path.basename(cover));
+    if (fs.existsSync(f)) {
+      try { fs.unlinkSync(f); } catch (e) { /* ignore */ }
+    }
+  }
+}
+
+function publicUser(u) {
+  return { id: u.id, username: u.username, email: u.email, role: u.role, createdAt: u.createdAt };
+}
+
+function publicGame(g) {
+  return { ...g, tags: Array.isArray(g.tags) ? g.tags : [] };
+}
+
+function requireAdmin(req, res) {
+  const user = currentUser(req);
+  if (!user || user.role !== "admin") {
+    json(res, 401, { error: "需要管理员登录" });
+    return null;
+  }
+  return user;
+}
+
+function validateGameInput(body) {
+  const title = sanitizeText(body.title, 80);
+  const link = sanitizeText(body.link, 400);
+  if (!title) throw Object.assign(new Error("请填写游戏名称"), { status: 400 });
+  if (!link) throw Object.assign(new Error("请填写游戏链接"), { status: 400 });
+  const description = sanitizeText(body.description, 600) || "一款新鲜出炉的网页游戏，点开即玩。";
+  const cover = normalizeCover(body.cover);
+  let tags = [];
+  if (typeof body.tags === "string") {
+    tags = body.tags.split(/[,，\s]+/).map((t) => t.trim()).filter(Boolean).slice(0, 8);
+  } else if (Array.isArray(body.tags)) {
+    tags = body.tags.map((t) => String(t).trim()).filter(Boolean).slice(0, 8);
+  }
+  const featured = body.featured === true || body.featured === "true";
+  return { title, link, description, cover, tags, featured };
+}
+
+// ---------------------------------------------------------------------------
+// Static file serving
+// ---------------------------------------------------------------------------
+const MIME = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".txt": "text/plain; charset=utf-8",
+};
+
+function serveStatic(req, res, pathname) {
+  let rel = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+  if (pathname === "/admin" || pathname === "/admin/") rel = "admin.html";
+  const dirs = [PUBLIC, UPLOADS];
+  for (const base of dirs) {
+    const safe = path.normalize(path.join(base, rel));
+    if (!safe.startsWith(base)) continue;
+    fs.stat(safe, (err, stats) => {
+      if (!err && stats.isFile()) {
+        const ext = path.extname(safe).toLowerCase();
+        const type = MIME[ext] || "application/octet-stream";
+        const lastMod = stats.mtime.toUTCString();
+        const ims = req.headers["if-modified-since"];
+        const codeCache = ext === ".html" || ext === ".css" || ext === ".js" || ext === ".mjs" || ext === ".json";
+        const cache = codeCache ? "no-cache" : "public, max-age=86400";
+        // 304 if the client already has an unchanged copy
+        if (ims && codeCache && stats.mtime.getTime() <= new Date(ims).getTime()) {
+          res.writeHead(304, { "Last-Modified": lastMod, "Cache-Control": cache });
+          return res.end();
+        }
+        res.writeHead(200, { "Content-Type": type, "Cache-Control": cache, "Last-Modified": lastMod });
+        if (req.method === "HEAD") return res.end();
+        fs.createReadStream(safe).pipe(res);
+      } else {
+        handleNotFound(res);
+      }
+    });
+    return;
+  }
+  handleNotFound(res);
+}
+
+function handleNotFound(res) {
+  res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
+  res.end("<!doctype html><meta charset=utf-8><title>404</title><body style='background:#0b0b0e;color:#c8f04b;font-family:sans-serif;display:grid;place-items:center;height:100vh'>404 · 页面不存在</body>");
+}
+
+// ---------------------------------------------------------------------------
+// Router
+// ---------------------------------------------------------------------------
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const pathname = url.pathname;
+  const method = req.method;
+
+  try {
+    // ---- Health check (for hosting platforms) ----
+    if (method === "GET" && pathname === "/api/health") {
+      return json(res, 200, { ok: true, name: "jiuri-games", time: Date.now() });
+    }
+
+    // ---- Auth ----
+    if (method === "POST" && pathname === "/api/register") {
+      const body = await parseJson(req);
+      const username = sanitizeText(body.username, 40);
+      const password = sanitizeText(body.password, 200);
+      const email = sanitizeText(body.email, 120);
+      if (!username || username.length < 2) return json(res, 400, { error: "用户名至少 2 个字符" });
+      if (!password || password.length < 6) return json(res, 400, { error: "密码至少 6 位" });
+      if (db.users.some((u) => u.username.toLowerCase() === username.toLowerCase())) {
+        return json(res, 409, { error: "该用户名已被注册" });
+      }
+      if (username.toLowerCase() === "admin") return json(res, 409, { error: "该用户名不可用" });
+      const user = createUser({ username, password, email });
+      db.users.push(user);
+      saveDb();
+      const token = signToken({ uid: user.id, role: user.role, exp: Date.now() + SESSION_DAYS * 864e5 });
+      res.setHeader("Set-Cookie", cookieFor(token, SESSION_DAYS * 86400));
+      return json(res, 201, { user: publicUser(user) });
+    }
+
+    if (method === "POST" && pathname === "/api/login") {
+      const body = await parseJson(req);
+      const username = sanitizeText(body.username, 40);
+      const password = sanitizeText(body.password, 200);
+      const user = db.users.find((u) => u.username.toLowerCase() === username.toLowerCase());
+      if (!user || hashPassword(password, user.salt) !== user.passHash) {
+        return json(res, 401, { error: "用户名或密码不正确" });
+      }
+      const token = signToken({ uid: user.id, role: user.role, exp: Date.now() + SESSION_DAYS * 864e5 });
+      res.setHeader("Set-Cookie", cookieFor(token, SESSION_DAYS * 86400));
+      return json(res, 200, { user: publicUser(user) });
+    }
+
+    if (method === "POST" && pathname === "/api/logout") {
+      res.setHeader("Set-Cookie", cookieFor("", 0));
+      return json(res, 200, { ok: true });
+    }
+
+    if (method === "GET" && pathname === "/api/me") {
+      const user = currentUser(req);
+      return json(res, 200, { user: user ? publicUser(user) : null });
+    }
+
+    // ---- Games (public) ----
+    if (method === "GET" && pathname === "/api/games") {
+      const games = [...db.games].sort((a, b) => {
+        if (a.featured !== b.featured) return a.featured ? -1 : 1;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
+      return json(res, 200, { games: games.map(publicGame) });
+    }
+
+    // ---- Admin ----
+    if (method === "GET" && pathname === "/api/admin/session") {
+      const user = currentUser(req);
+      return json(res, 200, { user: user && user.role === "admin" ? publicUser(user) : null });
+    }
+    if (pathname.startsWith("/api/admin")) {
+      const admin = requireAdmin(req, res);
+      if (!admin) return;
+
+      if (method === "POST" && pathname === "/api/admin/password") {
+        const body = await parseJson(req);
+        const oldPassword = sanitizeText(body.oldPassword, 200);
+        const newPassword = sanitizeText(body.newPassword, 200);
+        if (!oldPassword || hashPassword(oldPassword, admin.salt) !== admin.passHash) {
+          return json(res, 400, { error: "当前密码不正确" });
+        }
+        if (!newPassword || newPassword.length < 8) {
+          return json(res, 400, { error: "新密码至少 8 位" });
+        }
+        const salt = crypto.randomBytes(16).toString("hex");
+        admin.salt = salt;
+        admin.passHash = hashPassword(newPassword, salt);
+        saveDb();
+        return json(res, 200, { ok: true });
+      }
+
+      if (method === "GET" && pathname === "/api/admin/users") {
+        const users = db.users.map(publicUser).sort((a, b) => b.createdAt - a.createdAt);
+        return json(res, 200, { users });
+      }
+      if (method === "PUT" && pathname.startsWith("/api/admin/users/")) {
+        const id = decodeURIComponent(pathname.replace("/api/admin/users/", "").split("/")[0]);
+        const body = await parseJson(req);
+        const role = body.role === "admin" || body.role === "user" ? body.role : null;
+        if (!role) return json(res, 400, { error: "无效的角色" });
+        const user = db.users.find((u) => u.id === id);
+        if (!user) return json(res, 404, { error: "用户不存在" });
+        if (user.username === "admin") return json(res, 403, { error: "不能修改主管理员角色" });
+        if (role === "admin" && user.role === "admin") return json(res, 200, { user: publicUser(user) });
+        if (role === "user" && user.role === "user") return json(res, 200, { user: publicUser(user) });
+        // never allow removing the last admin
+        if (user.role === "admin" && role === "user" && db.users.filter((u) => u.role === "admin").length <= 1) {
+          return json(res, 400, { error: "至少保留一名管理员" });
+        }
+        user.role = role;
+        saveDb();
+        return json(res, 200, { user: publicUser(user) });
+      }
+      if (method === "DELETE" && pathname.startsWith("/api/admin/users/")) {
+        const id = decodeURIComponent(pathname.replace("/api/admin/users/", "").split("/")[0]);
+        const idx = db.users.findIndex((u) => u.id === id);
+        if (idx === -1) return json(res, 404, { error: "用户不存在" });
+        if (db.users[idx].username === "admin") return json(res, 403, { error: "不能删除主管理员" });
+        if (db.users[idx].role === "admin" && db.users.filter((u) => u.role === "admin").length <= 1) {
+          return json(res, 400, { error: "至少保留一名管理员" });
+        }
+        db.users.splice(idx, 1);
+        saveDb();
+        return json(res, 200, { ok: true });
+      }
+      if (method === "POST" && pathname === "/api/admin/games") {
+        const body = await parseJson(req);
+        const data = validateGameInput(body);
+        const now = Date.now();
+        const game = { id: uid(), ...data, createdAt: now, updatedAt: now };
+        db.games.push(game);
+        saveDb();
+        return json(res, 201, { game: publicGame(game) });
+      }
+      if (method === "PUT" && pathname.startsWith("/api/admin/games/")) {
+        const id = decodeURIComponent(pathname.split("/").pop());
+        const idx = db.games.findIndex((g) => g.id === id);
+        if (idx === -1) return json(res, 404, { error: "游戏不存在" });
+        const body = await parseJson(req);
+        const data = validateGameInput(body);
+        if (db.games[idx].cover && data.cover && db.games[idx].cover !== data.cover) {
+          removeUploadedCover(db.games[idx].cover);
+        }
+        Object.assign(db.games[idx], data, { updatedAt: Date.now() });
+        saveDb();
+        return json(res, 200, { game: publicGame(db.games[idx]) });
+      }
+      if (method === "DELETE" && pathname.startsWith("/api/admin/games/")) {
+        const id = decodeURIComponent(pathname.split("/").pop());
+        const idx = db.games.findIndex((g) => g.id === id);
+        if (idx === -1) return json(res, 404, { error: "游戏不存在" });
+        const [g] = db.games.splice(idx, 1);
+        removeUploadedCover(g.cover);
+        saveDb();
+        return json(res, 200, { ok: true });
+      }
+      return json(res, 404, { error: "接口不存在" });
+    }
+
+    // ---- Static ----
+    if (method === "GET" || method === "HEAD") {
+      return serveStatic(req, res, pathname);
+    }
+    return json(res, 405, { error: "Method not allowed" });
+  } catch (err) {
+    const status = err.status || 500;
+    if (status >= 500) console.error("Server error:", err);
+    if (!res.headersSent) json(res, status, { error: err.message || "服务器内部错误" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Seed sample games so the site isn't empty on first run
+// ---------------------------------------------------------------------------
+function seedGames() {
+  if (db.games.length > 0) return;
+  const now = Date.now();
+  const base = "/assets/img/";
+  const samples = [
+    { title: "像素深渊", link: "#play", description: "一款像素风 Roguelike 地牢冒险，随机生成关卡，尽享未知与惊喜。", cover: base + "p3.jpg", tags: ["Roguelike", "像素", "冒险"], featured: true },
+    { title: "光轨竞速", link: "#play", description: "霓虹赛道上的极速对决，漂移与氮气并存，感受速度的极致。", cover: base + "p5.jpg", tags: ["竞速", "霓虹"], featured: true },
+    { title: "星海拾荒者", link: "#play", description: "在浩瀚星海中收集残骸与资源，建造属于你的星际方舟。", cover: base + "p2.jpg", tags: ["科幻", "建造"], featured: true },
+    { title: "墨色迷局", link: "#play", description: "烧脑的解谜游戏，光线与影子的重构，每一关都是新的世界。", cover: base + "p4.jpg", tags: ["解谜", "烧脑"], featured: false },
+    { title: "熔岩冲刺", link: "#play", description: "不断崩塌的熔岩世界里一路向上，是最纯粹的跳跃挑战。", cover: base + "p6.jpg", tags: ["平台跳跃"], featured: false },
+    { title: "幻境花园", link: "#play", description: "治愈系花园建造，等待你的是一片安静生长的绿意。", cover: base + "p1.jpg", tags: ["模拟", "治愈"], featured: false },
+  ];
+  db.games = samples.map((s, i) => ({ id: uid(), ...s, createdAt: now - i * 3600e3, updatedAt: now - i * 3600e3 }));
+  saveDb();
+}
+
+loadDb();
+seedGames();
+
+server.listen(PORT, HOST, () => {
+  console.log(`\n  爱冒险玖日 · 游戏网站\n  http://localhost:${PORT}\n  管理面板: http://localhost:${PORT}/admin\n`);
+});

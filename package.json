@@ -1,0 +1,13 @@
+{
+  "name": "jiuri-games",
+  "version": "1.0.0",
+  "private": true,
+  "description": "爱冒险玖日 · 游戏网站（纯 Node 内置模块，无依赖）",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

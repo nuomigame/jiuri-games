@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0a0a0c" />
+  <title>爱冒险玖日 · 游戏网站</title>
+  <meta name="description" content="爱冒险玖日的游戏网站 —— 精选网页游戏，点开即玩。" />
+  <link rel="icon" href="/assets/img/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css?v=2" />
+</head>
+<body>
+  <div class="site-grain" aria-hidden="true"></div>
+
+  <!-- ============ NAV ============ -->
+  <header class="nav" id="nav">
+    <div class="nav-inner">
+      <a class="brand" href="#home">
+        <span class="brand-mark"><img src="/assets/img/logo.png" alt="" /></span>
+        <span class="brand-name">爱冒险玖日<em>Game Site</em></span>
+      </a>
+      <nav class="nav-links">
+        <a href="#home" class="is-active">首页</a>
+        <a href="#games">游戏</a>
+        <a href="#about">关于</a>
+        <a href="#contact">联系</a>
+      </nav>
+      <div class="nav-actions">
+        <button class="btn btn-ghost user-btn" id="navAuthBtn">登录 / 注册</button>
+        <a class="btn btn-primary" href="#contact">开始探索</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="home">
+    <div class="hero-bg" aria-hidden="true">
+      <img class="hero-poster" src="/assets/img/hero-poster.jpg" alt="" />
+      <video class="hero-video" autoplay muted loop playsinline preload="metadata" poster="/assets/img/hero-poster.jpg"></video>
+      <canvas class="hero-canvas" id="heroCanvas"></canvas>
+      <div class="hero-scrim"></div>
+    </div>
+
+    <div class="hero-content container">
+      <p class="eyebrow">ADVENTURE&nbsp;·&nbsp;WEB GAMES&nbsp;·&nbsp;玖日</p>
+      <h1 class="hero-title">
+        <span class="line line-accent">爱冒险玖日</span>
+        <span class="line line-main">的<em>游戏网站</em></span>
+      </h1>
+      <p class="hero-sub">在这里，玩耍每一段冒险 —— 精选网页游戏，无需下载，点开即玩。</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg" href="#games">开始选择游戏</a>
+        <button class="btn btn-ghost btn-lg" data-open-contact>联系我们</button>
+      </div>
+      <div class="hero-meta">
+        <span>01 / 探索</span>
+        <span class="hero-meta-line"></span>
+        <span>Scroll to begin</span>
+      </div>
+    </div>
+    <div class="scroll-cue" aria-hidden="true"><span></span></div>
+  </section>
+
+  <!-- ============ GAMES ============ -->
+  <section class="section games" id="games">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <p class="kicker">可以游玩的游戏</p>
+          <h2 class="section-title">Playable <span>Games</span></h2>
+        </div>
+        <div class="section-actions">
+          <a class="manage-link" id="manageLink" href="/admin" hidden>管理员面板 →</a>
+          <div class="carousel-nav">
+            <button class="carousel-btn" id="gamesPrev" aria-label="上一批">‹</button>
+            <button class="carousel-btn" id="gamesNext" aria-label="下一批">›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="carousel-wrap">
+      <div class="carousel" id="gamesTrack"></div>
+      <div class="carousel-fade carousel-fade-l" aria-hidden="true"></div>
+      <div class="carousel-fade carousel-fade-r" aria-hidden="true"></div>
+    </div>
+    <div class="container">
+      <div class="empty-state" id="gamesEmpty" hidden>
+        <p>暂时还没有可游玩的游戏，敬请期待。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TICKER ============ -->
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker-track">
+      <span>点开即玩</span><i>◆</i>
+      <span>无需下载</span><i>◆</i>
+      <span>精选推荐</span><i>◆</i>
+      <span>持续上新</span><i>◆</i>
+      <span>冒险开始</span><i>◆</i>
+      <span>点开即玩</span><i>◆</i>
+      <span>无需下载</span><i>◆</i>
+      <span>精选推荐</span><i>◆</i>
+      <span>持续上新</span><i>◆</i>
+      <span>冒险开始</span><i>◆</i>
+    </div>
+  </div>
+
+  <!-- ============ ABOUT ============ -->
+  <section class="section about" id="about">
+    <div class="container about-grid">
+      <div class="about-visual reveal">
+        <div class="portrait-frame">
+          <img src="/assets/img/avatar.jpg" alt="玖日" />
+          <div class="portrait-tag">THE&nbsp;ADVENTURER</div>
+        </div>
+      </div>
+      <div class="about-body reveal">
+        <p class="kicker">关于 · 个人经历</p>
+        <h2 class="section-title">你好，我是<span>玖日</span></h2>
+        <p class="lead">一个把热爱做成网站的游戏玩家与独立开发者。这里是我的数字乐园——收藏我试玩过、也精心打磨过的每一段冒险。</p>
+        <p class="muted">从像素地牢到霓虹赛道，我始终相信好的游戏是通往另一个世界的门。这座网站会随身更新，把值得一玩的作品都装进来。</p>
+
+        <ul class="contact-list">
+          <li><span class="ci">✉</span><span class="cl"><a class="mail-link" href="mailto:3114844060@qq.com">3114844060@qq.com</a></span></li>
+          <li><span class="ci">✳</span><span class="cl">@jiuri_adventure</span></li>
+          <li><span class="ci">◉</span><span class="cl">中国 · 在线</span></li>
+        </ul>
+
+        <div class="stats" id="statsGrid">
+          <div class="stat">
+            <b class="stat-num" data-count="18" data-suffix="+">0</b>
+            <span class="stat-label">精选游戏</span>
+          </div>
+          <div class="stat">
+            <b class="stat-num" data-count="96" data-suffix="%">0</b>
+            <span class="stat-label">好评率</span>
+          </div>
+          <div class="stat">
+            <b class="stat-num" data-count="1200" data-suffix="+">0</b>
+            <span class="stat-label">冒险旅程</span>
+          </div>
+          <div class="stat">
+            <b class="stat-num" data-count="2026">0</b>
+            <span class="stat-label">坚持至今</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CONTACT ============ -->
+  <section class="contact" id="contact">
+    <div class="contact-inner">
+      <div class="container">
+        <p class="kicker">一起出发</p>
+        <h2 class="contact-title">
+          准备好开始<br /><span>下一段冒险</span>了吗？
+        </h2>
+        <p class="contact-sub">无论是想合作、推荐好游戏，还是单纯聊聊，都欢迎来到我的 B 站主页。</p>
+        <a class="btn btn-primary btn-xl contact-mail" href="https://space.bilibili.com/660351823?spm_id_from=333.337.0.0" target="_blank" rel="noopener">
+          哔哩哔哩主页&nbsp;<span aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </div>
+    <footer class="footer">
+      <div class="container footer-inner">
+        <span>© 2026 爱冒险玖日 · 游戏网站</span>
+        <span>Powered by Curiosity</span>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ============ AUTH MODAL ============ -->
+  <div class="modal" id="authModal" hidden>
+    <div class="modal-backdrop" data-close-auth></div>
+    <div class="modal-panel">
+      <button class="modal-close" data-close-auth aria-label="关闭">×</button>
+      <div class="auth-tabs">
+        <button class="auth-tab is-active" data-auth="login">登录</button>
+        <button class="auth-tab" data-auth="register">注册</button>
+      </div>
+      <form class="auth-form" id="authForm">
+        <label class="field">
+          <span class="field-label">用户名</span>
+          <input type="text" name="username" autocomplete="username" required />
+        </label>
+        <label class="field" id="emailField" hidden>
+          <span class="field-label">邮箱（选填）</span>
+          <input type="email" name="email" autocomplete="email" />
+        </label>
+        <label class="field">
+          <span class="field-label">密码</span>
+          <input type="password" name="password" autocomplete="current-password" required />
+        </label>
+        <p class="form-error" id="authError" hidden></p>
+        <button type="submit" class="btn btn-primary btn-block" id="authSubmit">登录</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="/js/app.js?v=5"></script>
+</body>
+</html>
