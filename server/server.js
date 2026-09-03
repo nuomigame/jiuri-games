@@ -852,6 +852,26 @@ const server = http.createServer(async (req, res) => {
       const admin = requireAdmin(req, res);
       if (!admin) return;
 
+      // ---- 管理员下载生成的游戏包 ----
+      const dlM = pathname.match(/^\/api\/admin\/studio\/([^/]+)\/download$/);
+      if (method === "GET" && dlM) {
+        const id = decodeURIComponent(dlM[1]);
+        if (!/^[a-zA-Z0-9-]+$/.test(id)) return handleNotFound(res);
+        const f = path.join(DATA_DIR, "studio", id + ".html");
+        fs.stat(f, (err, stats) => {
+          if (err || !stats.isFile()) return json(res, 404, { error: "该游戏文件不存在" });
+          const meta = db.aiGames[id];
+          const fname = (meta && meta.title ? meta.title : "game") + ".html";
+          res.writeHead(200, {
+            "Content-Type": "text/html; charset=utf-8",
+            "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(fname)}`,
+            "Cache-Control": "no-store",
+          });
+          fs.createReadStream(f).pipe(res);
+        });
+        return;
+      }
+
       // ---- Developer applications ----
       if (method === "GET" && pathname === "/api/admin/applications") {
         const apps = db.applications

@@ -12,7 +12,7 @@
   const f = (c) => "¥" + ((Number(c) || 0) / 100).toFixed(2);
   const navAuthBtn = $("#navAuthBtn");
   let me = null, balance = 0, price = 500, currentId = null;
-  let projects = [], currentSourceId = null, images = [];
+  let projects = [], currentSourceId = null, images = [], isAdmin = false;
 
   async function loadMe() {
     const cfg = await api("/api/config");
@@ -21,6 +21,7 @@
     $("#priceHint").textContent = "按当次生成消耗 token 计费，" + (minC ? "约 " + f(minC) + " 起" : "免费") + (maxC ? "，最高 " + f(maxC) : "");
     const r = await api("/api/me");
     me = r.data.user || null;
+    isAdmin = !!(me && me.role === "admin");
     const isDev = !!(me && (me.role === "developer" || me.role === "admin"));
     if (me) {
       navAuthBtn.textContent = `${me.username} · 退出`;
@@ -111,6 +112,13 @@
     } else {
       const d = r.data;
       currentId = d.id;
+      if (isAdmin) {
+        const db = $("#downloadBtn");
+        db.href = "/api/admin/studio/" + d.id + "/download";
+        db.hidden = false;
+      } else {
+        $("#downloadBtn").hidden = true;
+      }
       balance = d.balance;
       $("#balHint").textContent = "余额：" + f(balance);
       $("#balanceBtn").textContent = "账户余额：" + f(balance);

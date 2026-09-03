@@ -166,6 +166,13 @@ function extractHtml(content) {
   return c;
 }
 
+// 去掉外部网络依赖（外部 script/link），让游戏离线可玩
+function makeOffline(html) {
+  return String(html)
+    .replace(/<script\b[^>]*src=["']?(?:https?:)?\/\/[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<link\b[^>]*href=["']?(?:https?:)?\/\/[^>]*>/gi, "");
+}
+
 function buildUserContent(title, prompt, images) {
   const text = "游戏标题：" + (title || "未命名小游戏") + "\n需求：" + prompt;
   if (images && images.length) {
@@ -226,7 +233,7 @@ async function generateGame({ prompt, title, images, sourceHtml }) {
   if (process.env.AI_API_KEY) {
     try {
       const r = await callAI({ prompt: pt, title: t, images, sourceHtml });
-      return { html: r.html, title: t, note: sourceHtml ? "AI 修改" : "AI 生成", usedAI: true, usage: r.usage };
+      return { html: makeOffline(r.html), title: t, note: sourceHtml ? "AI 修改" : "AI 生成", usedAI: true, usage: r.usage };
     } catch (e) {
       if (sourceHtml) return { html: sourceHtml, title: t, usedAI: false, note: "AI 修改失败，已保留原游戏：" + e.message };
       const fb = proceduralGame(pt, t);
