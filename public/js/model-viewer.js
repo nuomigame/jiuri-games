@@ -40,7 +40,7 @@
       if (!dragging) return;
       const dx = e.clientX - px, dy = e.clientY - py;
       px = e.clientX; py = e.clientY;
-      camTheta -= dx * 0.005;
+      camTheta += dx * 0.005;
       camPhi = Math.max(0.15, Math.min(Math.PI - 0.15, camPhi - dy * 0.005));
       updateCam();
     });
