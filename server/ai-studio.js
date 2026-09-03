@@ -182,12 +182,16 @@ async function callAI({ prompt, title, images, sourceHtml }) {
   if (!key) throw new Error("未配置 AI_API_KEY");
   const base = (process.env.AI_BASE_URL || "https://api.deepseek.com").replace(/\/+$/, "");
   const model = process.env.AI_MODEL || "deepseek-v4-flash-vision-exp";
-  const sys = sourceHtml
-    ? "你是一个网页游戏修改器。用户给你一个现有的单文件 HTML5 小游戏以及修改要求。请在原代码基础上按要求修改，输出修改后的完整、可运行、单文件 HTML5 游戏。所有 CSS 和 JS 内联；不用外部库或网络请求；中文界面；只输出代码本身。"
+  const isModify = !!sourceHtml;
+  const sys = isModify
+    ? "你是一个网页游戏生成器。用户会说明这是对某个已有游戏的修改要求。请在保留原游戏核心玩法的基础上，按要求调整，重新输出一个完整、可运行的、单文件 HTML5 小游戏。要求：把所有 CSS 和 JavaScript 内联在一个 <html> 文件里；不要用外部库或网络请求；用中文；界面简洁现代；有开始界面和分数。只输出代码本身，不要额外解释。"
     : "你是一个网页游戏生成器。请根据用户的提示词，输出一个完整、可运行的、单文件 HTML5 小游戏。要求：把所有 CSS 和 JavaScript 内联在一个 <html> 文件里；不要用外部库或网络请求；用中文；界面简洁现代；有开始界面和分数。只输出代码本身，不要额外解释。";
-  const messages = [{ role: "system", content: sys }];
-  if (sourceHtml) messages.push({ role: "user", content: "现有游戏代码：\n```html\n" + String(sourceHtml).slice(0, 12000) + "\n```\n请在其基础上按后一条需求修改，只输出修改后的完整单文件 html。" });
-  messages.push({ role: "user", content: buildUserContent(title, prompt, images) });
+  const lead = isModify ? `这是对已有游戏《${title || "未命名"}》的修改要求，请重新生成一个完整可玩的游戏并体现这些改动。` : "";
+  const userText = lead + "\n需求：" + prompt;
+  const userContent = (images && images.length)
+    ? [{ type: "text", text: userText }, ...images.slice(0, 4).map((u) => ({ type: "image_url", image_url: { url: u } }))]
+    : userText;
+  const messages = [{ role: "system", content: sys }, { role: "user", content: userContent }];
   const body = { model, temperature: 0.8, max_tokens: 6000, messages };
   const post = (m) => fetch(base + "/chat/completions", {
     method: "POST",
