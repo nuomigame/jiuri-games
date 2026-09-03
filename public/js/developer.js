@@ -183,6 +183,7 @@
   async function loadMyModels() {
     const data = await api("/api/my/models");
     const list = data.models;
+    window.__modelsList = list;
     $("#myModelCount").textContent = list.length + " 个";
     const body = $("#modelBody"); const empty = $("#modelEmpty");
     if (!list.length) { body.innerHTML = ""; empty.hidden = false; return; }
@@ -190,10 +191,15 @@
     body.innerHTML = list.map((m) => `<tr>
       <td class="game-row-title"><b>${esc(m.name)}</b>${m.own ? "" : ' <span class="pill off">公共</span>'}</td>
       <td><span class="pill ${m.visibility === "public" ? "dev" : "off"}">${m.visibility === "public" ? "公开" : "私有"}</span></td>
-      <td class="ta-r">${m.own ? `<button class="btn btn-danger btn-mini" data-modeldel="${esc(m.id)}">删除</button>` : '<span style="color:#666;font-size:12px">仅管理员可删</span>'}</td>
+      <td class="ta-r"><div class="row-actions">
+        <button class="btn btn-ghost btn-mini" data-viewmodel="${esc(m.id)}">查看</button>
+        ${m.own ? `<button class="btn btn-danger btn-mini" data-modeldel="${esc(m.id)}">删除</button>` : '<span style="color:#666;font-size:12px">仅管理员可删</span>'}
+      </div></td>
     </tr>`).join("");
   }
   $("#modelBody").addEventListener("click", async (e) => {
+    const v = e.target.closest("[data-viewmodel]");
+    if (v) { const m = (window.__modelsList || []).find((x) => x.id === v.dataset.viewmodel); if (m && window.openModelViewer) window.openModelViewer(m.url, m.name); return; }
     const b = e.target.closest("[data-modeldel]");
     if (!b) return;
     if (!confirm("确定删除这个模型？")) return;

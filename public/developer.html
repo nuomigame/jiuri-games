@@ -194,6 +194,16 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="/js/developer.js?v=5"></script>
+  <div class="modal" id="modelModal" hidden>
+    <div class="modal-backdrop" data-close-model></div>
+    <div class="modal-panel" style="width:min(720px,92vw)">
+      <button class="modal-close" data-close-model aria-label="关闭">×</button>
+      <p class="kicker">模型预览</p>
+      <h2 class="modal-title" id="mmTitle">模型</h2>
+      <div id="mmCanvas" style="height:420px"></div>
+    </div>
+  </div>
+  <script src="/js/developer.js?v=6"></script>
+  <script src="/js/model-viewer.js?v=1"></script>
 </body>
 </html>

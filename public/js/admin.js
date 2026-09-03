@@ -316,6 +316,7 @@
   async function loadModels() {
     const data = await api("/api/admin/models");
     const list = data.models;
+    window.__modelsList = list;
     $("#modelCount").textContent = list.length + " 个";
     const body = $("#modelBody"); const empty = $("#modelEmpty");
     if (!list.length) { body.innerHTML = ""; empty.hidden = false; return; }
@@ -324,10 +325,15 @@
       <td class="game-row-title"><b>${esc(m.name)}</b></td>
       <td><span class="pill ${m.visibility === "public" ? "dev" : "off"}">${m.visibility === "public" ? "公开" : "私有"}</span></td>
       <td class="link-cell">${esc(m.url)}</td>
-      <td class="ta-r"><button class="btn btn-danger btn-mini" data-modeldel="${esc(m.id)}">删除</button></td>
+      <td class="ta-r"><div class="row-actions">
+        <button class="btn btn-ghost btn-mini" data-viewmodel="${esc(m.id)}">查看</button>
+        <button class="btn btn-danger btn-mini" data-modeldel="${esc(m.id)}">删除</button>
+      </div></td>
     </tr>`).join("");
   }
   $("#modelBody").addEventListener("click", async (e) => {
+    const v = e.target.closest("[data-viewmodel]");
+    if (v) { const m = (window.__modelsList || []).find((x) => x.id === v.dataset.viewmodel); if (m && window.openModelViewer) window.openModelViewer(m.url, m.name); return; }
     const b = e.target.closest("[data-modeldel]");
     if (!b) return;
     if (!confirm("确定删除这个模型？")) return;
