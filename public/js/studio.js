@@ -158,9 +158,22 @@
       $("#previewCard").hidden = false;
       toast("生成成功！你可以预览后一键发布");
       $("#previewCard").scrollIntoView({ behavior: "smooth", block: "start" });
+      // 保持在当前项目上，方便继续修改；更新下拉与修改记录
+      currentSourceId = d.id;
+      await loadProjects();
+      $("#projectSelect").value = d.id;
+      const p = projects.find((x) => x.id === d.id);
+      if (p) {
+        $("#promptInput").value = "";
+        $("#promptInput").placeholder = "输入本次要修改/新增的要求（系统会结合之前所有要求）";
+        const his = (p.history && p.history.length ? p.history : [p.prompt]).filter((h) => h && h.trim());
+        $("#projHistory").innerHTML = "<b>修改记录（供你查看，不会重复生成）：</b>" + his.map((h, i) => `<div>${i + 1}. ${escapeHtml(h)}</div>`).join("");
+        $("#projHistory").hidden = false;
+        $("#projectTools").hidden = false;
+      }
     }
     genBtn.disabled = false;
-    genBtn.textContent = "生成游戏";
+    genBtn.textContent = currentSourceId ? "修改游戏" : "生成游戏";
   });
 
   $("#pubBtn").addEventListener("click", async () => {
