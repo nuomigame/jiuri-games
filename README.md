@@ -79,13 +79,33 @@
 
 ### 方式二：完整版（保留在线后台，游戏可随时在线增删改）
 
-在线后台需要一台“常驻服务器 + 数据存储”，请部署到能运行 Node.js 的免费平台（如 Render / Railway / Fly.io）。项目已配置好（根目录的 `package.json`、健康检查 `/api/health`、`DATA_DIR` 可指向持久化磁盘、管理员可在后台改密码）。
+完整版需要一个“能跑 Node.js + 带持久化磁盘”的平台，推荐 **Railway**（免费、适合这个项目）。项目已配置好 Dockerfile、`package.json`、健康检查 `/api/health`、`DATA_DIR` 持久化支持，以及后台在线改密码。
 
-大致步骤（以 Render 为例）：
-1. 把本项目推到 GitHub。
-2. 在 Render 新建 Web Service 并连接该仓库，构建命令留空，启动命令填 `npm start`。
-3. 在环境变量里设置 `PORT`（平台会自动给）、`DATA_DIR`（指向持久化磁盘，防止重启丢数据）、`ADMIN_PASSWORD`（部署环境的强管理员密码）。
-4. 部署后访问返回的网址；首次启动会自动创建管理员 `admin`。
+以 Railway 为例：
+1. 把本项目推到 GitHub（仓库要在根目录含 `package.json` 与 `Dockerfile`）。
+2. 在 Railway「New Project → Deploy from GitHub」选择该仓库，它会自动识别并部署（优先用 Dockerfile）。
+3. 在该服务 `Settings → Volumes` 添加一块卷，**挂载路径填 `/data`**（游戏、用户、封面都存在这里，重启/更新都不丢）。
+4. 在该服务 `Variables` 设置两个环境变量：
+   - `DATA_DIR=/data`（必须，指向上面的卷）
+   - `ADMIN_PASSWORD=你的强密码`（部署环境的管理员初始密码，务必改成强密码；数据库里还没有 admin 时才生效）
+5. 部署后打开返回的 `https://xxxx.up.railway.app` 地址；首次启动会自动创建管理员 `admin`，用你设置的 `ADMIN_PASSWORD` 登录。
+6. 后台管理：打开地址 `/admin`，可在线增删改游戏 / 上传封面 / 改密码。
+
+> 说明：`PORT` 平台会自动注入。若用其它免费平台（Render / Fly.io 等），同样原理——要 **挂载持久化卷并设 `DATA_DIR` 指向它**；Render 免费档没有持久化磁盘，因此更推荐 Railway 或 Fly.io。
+
+自带的一键部署入口：把仓库推上 GitHub 后，可在 [railway.app](https://railway.app) 通过仓库导入；也可用 Railway CLI 在本目录执行 `railway up`。
+
+---
+
+### 本地运行
+
+双击 `start.cmd` 即可，访问 <http://localhost:3009>，管理后台 `/admin`。
+
+---
+
+### 附录：静态版（仅前端，无后台）
+
+执行 `node server/build-static.js` 会生成 `build/netlify/` 与 `build/netlify-static.zip`，可拖到 Netlify Drop。注意静态版**没有**账号/后台功能。
 
 ---
 
