@@ -24,7 +24,8 @@
 .studio-card textarea { background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; color: var(--txt); font-size: 15px; font-family: var(--font); outline: none; resize: vertical; width: 100%; }
 .studio-card textarea:focus, .studio-card input:focus, .studio-card input[type="text"] { border-color: var(--accent-line); box-shadow: 0 0 0 4px var(--accent-soft); }
 .studio-card input[type="text"] { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 12px; padding: 13px 16px; color: var(--txt); font-size: 15px; font-family: var(--font); outline: none; }
-.studio-card select { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 12px; padding: 13px 16px; color: var(--txt); font-size: 15px; font-family: var(--font); outline: none; }
+.studio-card select { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 12px; padding: 13px 16px; color: var(--txt); font-size: 15px; font-family: var(--font); outline: none; color-scheme: dark; }
+.studio-card select option { background: #101014; color: var(--txt); }
 .shot-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .shot { position: relative; width: 64px; height: 64px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--bg-3); display: inline-block; }
 .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
