@@ -37,7 +37,7 @@
   onScrollNav();
 
   // active link highlight
-  const links = $$(".nav-links a");
+  const links = $$(".nav-links a").filter((l) => (l.getAttribute("href") || "").startsWith("#"));
   const sections = links.map((l) => $(l.getAttribute("href"))).filter(Boolean);
   const ioLink = new IntersectionObserver((entries) => {
     entries.forEach((e) => {
@@ -203,12 +203,8 @@
       list = list.filter((g) => (g.tags || []).some((t) => t.toLowerCase() === want));
     }
     // 赞多的排前面；同赞数的：精选靠前，其次最新靠前
-    list.sort((a, b) => {
-      const la = Number(a.likes) || 0, lb = Number(b.likes) || 0;
-      if (la !== lb) return lb - la;
-      if (!!a.featured !== !!b.featured) return a.featured ? -1 : 1;
-      return (b.createdAt || 0) - (a.createdAt || 0);
-    });
+    // 最新发布的优先展示
+    list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     return list;
   }
 
