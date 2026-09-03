@@ -12,7 +12,7 @@
   const f = (c) => "¥" + ((Number(c) || 0) / 100).toFixed(2);
   const navAuthBtn = $("#navAuthBtn");
   let me = null, balance = 0, price = 500, currentId = null;
-  let projects = [], currentSourceId = null, images = [], isAdmin = false;
+  let projects = [], currentSourceId = null, images = [], isAdmin = false, currentPlayUrl = "";
 
   async function loadMe() {
     const cfg = await api("/api/config");
@@ -107,7 +107,7 @@
       box.hidden = false;
       box.querySelectorAll("[data-restore]").forEach((b) => b.addEventListener("click", async () => {
         if (!confirm("确定恢复到该备份？当前版本会被覆盖为这一天。")) return;
-        try { await api("/api/studio/project/" + id + "/versions/restore", { method: "POST", body: JSON.stringify({ file: b.dataset.restore }) }); toast("已恢复该备份"); $("#frameWrap").innerHTML = `<iframe src="/play/${id}" loading="lazy" allow="fullscreen; autoplay"></iframe>`; loadBackups(id); } catch (err) { toast(err.message); }
+        try { await api("/api/studio/project/" + id + "/versions/restore", { method: "POST", body: JSON.stringify({ file: b.dataset.restore }) }); toast("已恢复该备份"); loadBackups(id); } catch (err) { toast(err.message); }
       }));
       box.querySelectorAll("[data-delback]").forEach((b) => b.addEventListener("click", async () => {
         if (!confirm("确定删除这个备份？")) return;
@@ -136,7 +136,6 @@
     try {
       await api("/api/studio/project/" + currentSourceId + "/restore", { method: "POST", body: "{}" });
       toast("已恢复上一版");
-      $("#frameWrap").innerHTML = `<iframe src="/play/${currentSourceId}" loading="lazy" allow="fullscreen; autoplay"></iframe>`;
     } catch (err) { toast(err.message); }
   });
   $("#projHistory").addEventListener("click", async (e) => {
@@ -214,7 +213,9 @@
       const chargeNote = d.tokensUsed ? (" · " + d.tokensUsed + " tokens · 扣 " + f(d.charge)) : "";
       $("#genNote").textContent = (d.note || "AI 生成") + chargeNote;
       $("#pubTitle").value = d.title || title;
-      $("#frameWrap").innerHTML = `<iframe src="${d.url}" loading="lazy" allow="fullscreen; autoplay"></iframe>`;
+      $("#thumbImg").src = "/api/studio/cover/" + d.id;
+      $("#studioThumb").hidden = false;
+      currentPlayUrl = d.url;
       $("#previewCard").hidden = false;
       toast("生成成功！你可以预览后一键发布");
       $("#previewCard").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -250,6 +251,15 @@
     else { toast("已发布到网站！去商店看看吧 🎉"); btn.textContent = "已发布 ✓"; btn.disabled = true; setTimeout(() => { location.href = "/store"; }, 900); return; }
     btn.disabled = false; btn.textContent = "发布到网站";
   });
+  const testModal = $("#gameTestModal");
+  const closeTest = () => { testModal.hidden = true; document.body.style.overflow = ""; $("#testFrame").src = ""; };
+  $("#studioThumb").addEventListener("click", () => {
+    if (!currentPlayUrl) { toast("请先生成一个游戏"); return; }
+    $("#testFrame").src = currentPlayUrl;
+    testModal.hidden = false; document.body.style.overflow = "hidden";
+  });
+  testModal.addEventListener("click", (e) => { if (e.target.closest("[data-close-test]")) closeTest(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !testModal.hidden) closeTest(); });
 
   loadMe();
 })();

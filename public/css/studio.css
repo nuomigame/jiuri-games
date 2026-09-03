@@ -51,6 +51,14 @@
 .preview-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .studio-frame { aspect-ratio: 16 / 10; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #000; margin-bottom: 16px; }
 .studio-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+.studio-thumb { position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--bg-3); cursor: pointer; }
+.studio-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.studio-thumb .thumb-play { position: absolute; inset: 0; display: grid; place-items: center; font-size: 46px; color: #fff; background: rgba(0,0,0,0.35); text-shadow: 0 6px 24px rgba(0,0,0,0.6); }
+.studio-thumb .thumb-label { position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 12px; color: #fff; background: rgba(0,0,0,0.5); padding: 4px; }
+.studio-thumb:hover .thumb-play { background: rgba(0,0,0,0.2); }
+.test-panel { width: min(88vw, 1200px); padding: 0; overflow: hidden; }
+.test-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+.test-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
 .studio-model { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 10px; margin-bottom: 8px; font-size: 13px; }
 .studio-model span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--txt-2); }
 .studio-model .proj-undo.sm { padding: 5px 10px; font-size: 12px; }

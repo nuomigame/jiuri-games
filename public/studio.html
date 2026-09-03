@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/style.css?v=5" />
-  <link rel="stylesheet" href="/css/studio.css?v=7" />
+  <link rel="stylesheet" href="/css/studio.css?v=8" />
 </head>
 <body>
   <header class="studio-nav">
@@ -86,7 +86,11 @@
           <h2 class="card-h">② 查看并发布</h2>
           <span class="pill dev" id="genNote"></span>
         </div>
-        <div class="studio-frame" id="frameWrap"></div>
+        <div class="studio-thumb" id="studioThumb" hidden>
+          <img id="thumbImg" src="" alt="预览" />
+          <span class="thumb-play" id="thumbPlay">▶</span>
+          <span class="thumb-label">点击此处在 16:9 弹窗里试玩</span>
+        </div>
         <label class="field"><span class="field-label">要用在网站上的名称</span><input type="text" id="pubTitle" maxlength="80" placeholder="游戏名" /></label>
         <label class="field"><span class="field-label">简介</span><textarea id="pubDesc" rows="2" maxlength="600" placeholder="一句话介绍"></textarea></label>
         <label class="field"><span class="field-label">标签（逗号分隔）</span><input type="text" id="pubTags" placeholder="像素, 小游戏" /></label>
@@ -117,6 +121,13 @@
     </div>
   </div>
   <div class="toast" id="toast" hidden></div>
+  <div class="modal" id="gameTestModal" hidden>
+    <div class="modal-backdrop" data-close-test></div>
+    <div class="modal-panel test-panel">
+      <button class="modal-close" data-close-test aria-label="关闭">×</button>
+      <div class="test-frame"><iframe id="testFrame" src="" allow="fullscreen; autoplay"></iframe></div>
+    </div>
+  </div>
   <script src="/js/feedback.js?v=1"></script>
   <div class="modal" id="modelModal" hidden>
     <div class="modal-backdrop" data-close-model></div>
@@ -128,6 +139,6 @@
     </div>
   </div>
   <script src="/js/model-viewer.js?v=5"></script>
-  <script src="/js/studio.js?v=9"></script>
+  <script src="/js/studio.js?v=10"></script>
 </body>
 </html>
