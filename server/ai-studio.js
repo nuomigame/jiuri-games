@@ -235,12 +235,12 @@ async function generateGame({ prompt, title, images, sourceHtml }) {
       const r = await callAI({ prompt: pt, title: t, images, sourceHtml });
       return { html: makeOffline(r.html), title: t, note: sourceHtml ? "AI 修改" : "AI 生成", usedAI: true, usage: r.usage };
     } catch (e) {
-      if (sourceHtml) return { html: sourceHtml, title: t, usedAI: false, note: "AI 修改失败，已保留原游戏：" + e.message };
+      if (sourceHtml) throw new Error("AI 修改失败：" + e.message);
       const fb = proceduralGame(pt, t);
       return { ...fb, usedAI: false, note: "AI 生成失败，已用内置生成器：" + e.message };
     }
   }
-  if (sourceHtml) return { html: sourceHtml, title: t, usedAI: false, note: "未配置 AI 密钥，无法修改" };
+  if (sourceHtml) throw new Error("未配置 AI 密钥，无法修改。请先到后台「站点设置」填写 AI 接口密钥。");
   const fb = proceduralGame(pt, t);
   return { ...fb, title: t, usedAI: false };
 }
