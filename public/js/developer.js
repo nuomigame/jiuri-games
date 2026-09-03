@@ -188,9 +188,9 @@
     if (!list.length) { body.innerHTML = ""; empty.hidden = false; return; }
     empty.hidden = true;
     body.innerHTML = list.map((m) => `<tr>
-      <td class="game-row-title"><b>${esc(m.name)}</b></td>
+      <td class="game-row-title"><b>${esc(m.name)}</b>${m.own ? "" : ' <span class="pill off">公共</span>'}</td>
       <td><span class="pill ${m.visibility === "public" ? "dev" : "off"}">${m.visibility === "public" ? "公开" : "私有"}</span></td>
-      <td class="ta-r"><button class="btn btn-danger btn-mini" data-modeldel="${esc(m.id)}">删除</button></td>
+      <td class="ta-r">${m.own ? `<button class="btn btn-danger btn-mini" data-modeldel="${esc(m.id)}">删除</button>` : '<span style="color:#666;font-size:12px">仅管理员可删</span>'}</td>
     </tr>`).join("");
   }
   $("#modelBody").addEventListener("click", async (e) => {

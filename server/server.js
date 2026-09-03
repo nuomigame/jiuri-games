@@ -66,6 +66,27 @@ function loadDb() {
   if (!Array.isArray(db.recharges)) db.recharges = [];
   if (!Array.isArray(db.feedbacks)) db.feedbacks = [];
   if (!Array.isArray(db.models)) db.models = [];
+  // 内置示例模型（带动作角色/怪物）：搬到持久目录并登记到模型库（仅首次）
+  if (!db._seededModels) {
+    const SEED_DIR = path.join(__dirname, "seeds", "models");
+    const SEED_MODELS = [
+      { file: "player.glb", name: "玩家角色（带动作）" },
+      { file: "zombie.glb", name: "丧尸（带动作）" },
+      { file: "gun.glb", name: "手枪" },
+    ];
+    if (fs.existsSync(SEED_DIR)) {
+      for (const s of SEED_MODELS) {
+        if (db.models.some((m) => m.file === s.file)) continue;
+        const sf = path.join(SEED_DIR, s.file);
+        if (fs.existsSync(sf)) {
+          fs.mkdirSync(path.join(DATA_DIR, "models"), { recursive: true });
+          fs.copyFileSync(sf, path.join(DATA_DIR, "models", s.file));
+          db.models.push({ id: uid(), name: s.name, file: s.file, visibility: "public", ownerId: null, createdAt: Date.now() });
+        }
+      }
+    }
+    db._seededModels = true;
+  }
   if (!db.settings || typeof db.settings !== "object") db.settings = {};
   if (typeof db.settings.pricePerGame !== "number") db.settings.pricePerGame = 500; // 分，默认 5 元/次
   if (!db.settings.rechargeQr) db.settings.rechargeQr = "";
@@ -1012,9 +1033,9 @@ const server = http.createServer(async (req, res) => {
       const user = currentUser(req);
       if (!user || (user.role !== "developer" && user.role !== "admin")) return json(res, 403, { error: "需要开发者权限" });
       const list = db.models
-        .filter((m) => m.ownerId === user.id)
+        .filter((m) => m.ownerId === user.id || m.visibility === "public")
         .sort((a, b) => b.createdAt - a.createdAt)
-        .map((m) => ({ id: m.id, name: m.name, url: "/models/" + m.file, visibility: m.visibility }));
+        .map((m) => ({ id: m.id, name: m.name, url: "/models/" + m.file, visibility: m.visibility, own: m.ownerId === user.id }));
       return json(res, 200, { models: list });
     }
     if (method === "DELETE" && pathname.startsWith("/api/models/")) {
