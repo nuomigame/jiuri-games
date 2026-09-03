@@ -5,6 +5,13 @@
   const modal = $("#modelModal");
   if (!modal) return;
   let renderer, scene, camera, mixer, clock, raf, container;
+  let camTheta = 0, camPhi = 1.05, camRadius = 4, camY = 1;
+  function updateCam() {
+    if (!camera) return;
+    const st = Math.sin(camPhi), ct = Math.cos(camPhi);
+    camera.position.set(camRadius * st * Math.cos(camTheta), camY + camRadius * ct, camRadius * st * Math.sin(camTheta));
+    camera.lookAt(0, camY, 0);
+  }
   function loadScript(src) {
     return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
   }
@@ -24,6 +31,17 @@
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(w, h); renderer.setPixelRatio(1);
     container.appendChild(renderer.domElement);
+    const el = renderer.domElement;
+    let px = 0, py = 0;
+    el.addEventListener("pointerdown", (e) => { px = e.clientX; py = e.clientY; el.setPointerCapture(e.pointerId); });
+    el.addEventListener("pointermove", (e) => {
+      const dx = e.clientX - px, dy = e.clientY - py;
+      px = e.clientX; py = e.clientY;
+      camTheta -= dx * 0.005;
+      camPhi = Math.max(0.15, Math.min(Math.PI - 0.15, camPhi - dy * 0.005));
+      updateCam();
+    });
+    el.addEventListener("wheel", (e) => { e.preventDefault(); camRadius = Math.max(1.5, Math.min(40, camRadius * (e.deltaY > 0 ? 1.12 : 0.9))); updateCam(); }, { passive: false });
     scene = new THREE.Scene(); scene.background = new THREE.Color(0x0e0e12);
     camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000); camera.position.set(0, 1.8, 4); camera.lookAt(0, 1, 0);
     scene.add(new THREE.AmbientLight(0xffffff, 0.7));
@@ -37,6 +55,9 @@
       const center = box.getCenter(new THREE.Vector3());
       obj.position.sub(center); obj.position.y += size.y / 2;
       scene.add(obj);
+      camY = size.y / 2;
+      camRadius = Math.max(size.x, size.y, size.z) * 2.4 + 1;
+      updateCam();
       if (gltf.animations && gltf.animations.length) {
         mixer = new THREE.AnimationMixer(obj);
         const action = mixer.clipAction(gltf.animations[0]);
