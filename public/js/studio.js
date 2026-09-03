@@ -76,7 +76,7 @@
     $("#genBtn").textContent = "修改游戏";
     $("#projectTools").hidden = false;
     const his = (p.history && p.history.length ? p.history : [p.prompt]).filter((h) => h && h.trim());
-    $("#projHistory").innerHTML = "<b>修改记录（供你查看，不会重复生成）：</b>" + his.map((h, i) => `<div>${i + 1}. ${escapeHtml(h)}</div>`).join("");
+    $("#projHistory").innerHTML = "<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b>修改记录（供你查看，不会重复生成）：</b><button type="button" class="proj-clear" id="clearHistoryBtn">清理记录</button></div>" + his.map((h, i) => `<div>${i + 1}. ${escapeHtml(h)}</div>`).join("");
     $("#projHistory").hidden = false;
     toast("已选择项目，填写要修改的地方后点「修改游戏」");
   });
@@ -93,6 +93,21 @@
       $("#genBtn").textContent = "生成游戏";
       $("#projectTools").hidden = true; $("#previewCard").hidden = true;
       loadProjects();
+    } catch (err) { toast(err.message); }
+  });
+  $("#projHistory").addEventListener("click", async (e) => {
+    const b = e.target.closest("#clearHistoryBtn");
+    if (!b || !currentSourceId) return;
+    if (!confirm("确定清理这条项目的修改记录？之后 AI 只会按你新增的要求生成。")) return;
+    try {
+      await api("/api/studio/project/" + currentSourceId + "/clear", { method: "POST", body: "{}" });
+      toast("已清理修改记录");
+      await loadProjects();
+      const p = projects.find((x) => x.id === currentSourceId);
+      $("#projHistory").innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b>修改记录（供你查看，不会重复生成）：</b><button type="button" class="proj-clear" id="clearHistoryBtn">清理记录</button></div>';
+      $("#projHistory").hidden = false;
+      $("#promptInput").value = "";
+      $("#promptInput").placeholder = "输入本次要修改/新增的要求（系统会结合之前所有要求）";
     } catch (err) { toast(err.message); }
   });
 
@@ -167,7 +182,7 @@
         $("#promptInput").value = "";
         $("#promptInput").placeholder = "输入本次要修改/新增的要求（系统会结合之前所有要求）";
         const his = (p.history && p.history.length ? p.history : [p.prompt]).filter((h) => h && h.trim());
-        $("#projHistory").innerHTML = "<b>修改记录（供你查看，不会重复生成）：</b>" + his.map((h, i) => `<div>${i + 1}. ${escapeHtml(h)}</div>`).join("");
+        $("#projHistory").innerHTML = "<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b>修改记录（供你查看，不会重复生成）：</b><button type="button" class="proj-clear" id="clearHistoryBtn">清理记录</button></div>" + his.map((h, i) => `<div>${i + 1}. ${escapeHtml(h)}</div>`).join("");
         $("#projHistory").hidden = false;
         $("#projectTools").hidden = false;
       }

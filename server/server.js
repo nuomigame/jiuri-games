@@ -893,6 +893,21 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true });
     }
 
+    // ---- 清理项目的修改记录 ----
+    if (method === "POST" && pathname.startsWith("/api/studio/project/") && pathname.endsWith("/clear")) {
+      const user = currentUser(req);
+      if (!user || (user.role !== "developer" && user.role !== "admin")) {
+        return json(res, 403, { error: "只有开发者才能操作" });
+      }
+      const id = decodeURIComponent(pathname.split("/")[4] || "");
+      const meta = db.aiGames[id];
+      if (!meta || meta.ownerId !== user.id) return json(res, 404, { error: "未找到该项目，或无权操作" });
+      meta.history = [];
+      meta.prompt = "";
+      saveDb();
+      return json(res, 200, { ok: true });
+    }
+
     // ---- AI 工坊：发布生成的游戏到网站 ----
     if (method === "POST" && pathname === "/api/studio/publish") {
       const user = currentUser(req);
