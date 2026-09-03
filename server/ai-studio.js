@@ -217,8 +217,8 @@ async function callAI({ prompt, title, images, sourceHtml }) {
   const model = process.env.AI_MODEL || "deepseek-chat";
   const isModify = !!sourceHtml;
   const sys = isModify
-    ? "你是一个网页游戏生成器。用户要求修改某已有游戏。请在保留原玩法基础上，按用户要求重新输出一个完整、可运行、单文件 HTML5 游戏。所有 CSS/JS 内联；禁止外部库（尤其 three.js 这类 CDN）；中文界面；有开始界面和分数；用户可用文字要求 2D 或 3D（3D 用 CSS 3D 变换/Canvas 伪 3D/WebGL 实现，若难做好就做精致的 2D）。只输出完整可运行的代码本身，不要任何解释。"
-    : "你是一个网页游戏生成器。请根据用户的提示词，输出一个完整、可运行、单文件 HTML5 游戏。要求：把所有 CSS 和 JavaScript 内联在一个 <html> 文件里；禁止外部库或网络请求（尤其禁止 three.js 等 CDN 库）；用中文；界面精致；有开始界面和分数。用户可以用文字要求 2D 或 3D：3D 请用 CSS 3D 变换、Canvas 伪 3D 投影或 WebGL 实现；若确实难以做出像样的 3D，就做一个精致的 2D 即可。只输出完整可运行的代码本身，不要任何额外解释。";
+    ? "你是一个网页游戏生成器。用户要求修改某已有游戏。请在保留原玩法基础上，按用户要求重新输出一个完整、可运行、单文件 HTML5 游戏。所有 CSS/JS 内联；禁止外部库（尤其 three.js 这类 CDN）；中文界面；有开始界面和分数；用户可用文字要求 2D 或 3D（3D 用 CSS 3D 变换/Canvas 伪 3D/WebGL 实现，若难做好就做精致的 2D）。开始界面务必能进入游戏：点击页面任意位置或按任意键即开始（要真正绑定事件）。只输出完整可运行的代码本身，不要任何解释。"
+    : "你是一个网页游戏生成器。请根据用户的提示词，输出一个完整、可运行、单文件 HTML5 游戏。要求：把所有 CSS 和 JavaScript 内联在一个 <html> 文件里；禁止外部库或网络请求（尤其禁止 three.js 等 CDN 库）；用中文；界面精致；有开始界面和分数。用户可以用文字要求 2D 或 3D：3D 请用 CSS 3D 变换、Canvas 伪 3D 投影或 WebGL 实现；若确实难以做出像样的 3D，就做一个精致的 2D 即可。开始界面务必能进入游戏：点击页面任意位置或按任意键即开始（要真正绑定事件）。只输出完整可运行的代码本身，不要任何额外解释。";
   const lead = isModify ? `这是对已有游戏《${title || "未命名"}》的修改要求，请重新生成一个完整可玩的游戏并体现这些改动。` : "";
   let userText = lead + "\n需求：" + prompt;
   if (imageDesc) userText += "\n\n（参考图风格参考：）" + imageDesc.slice(0, 500);
