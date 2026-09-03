@@ -60,7 +60,7 @@
   }
   function close() { modal.hidden = true; document.body.style.overflow = ""; }
 
-  modal.addEventListener("click", (e) => { if (e.target.dataset.closeGame) close(); });
+  modal.addEventListener("click", (e) => { if (e.target.closest("[data-close-game]")) close(); });
   E("#gmPrev").addEventListener("click", () => { slideIdx = (slideIdx - 1 + slides.length) % slides.length; renderSlide(); });
   E("#gmNext").addEventListener("click", () => { slideIdx = (slideIdx + 1) % slides.length; renderSlide(); });
   document.addEventListener("keydown", (e) => {
