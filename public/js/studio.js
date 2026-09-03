@@ -95,6 +95,15 @@
       loadProjects();
     } catch (err) { toast(err.message); }
   });
+  $("#restoreBtn").addEventListener("click", async () => {
+    if (!currentSourceId) { toast("请先在「我的项目」选一个项目"); return; }
+    if (!confirm("确定恢复到上一版？当前版本会被覆盖为上一版（改坏了可回退）。")) return;
+    try {
+      await api("/api/studio/project/" + currentSourceId + "/restore", { method: "POST", body: "{}" });
+      toast("已恢复上一版");
+      $("#frameWrap").innerHTML = `<iframe src="/play/${currentSourceId}" loading="lazy" allow="fullscreen; autoplay"></iframe>`;
+    } catch (err) { toast(err.message); }
+  });
   $("#projHistory").addEventListener("click", async (e) => {
     const b = e.target.closest("#clearHistoryBtn");
     if (!b || !currentSourceId) return;

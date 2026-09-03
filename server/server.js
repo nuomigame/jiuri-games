@@ -839,7 +839,9 @@ const server = http.createServer(async (req, res) => {
       }
       const dir = path.join(DATA_DIR, "studio");
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, id + ".html"), generation.html, "utf8");
+      const gf = path.join(dir, id + ".html");
+      if (fs.existsSync(gf)) fs.copyFileSync(gf, path.join(dir, id + ".bak.html"));
+      fs.writeFileSync(gf, generation.html, "utf8");
       db.aiGames[id] = {
         id,
         ownerId: user.id,
@@ -914,6 +916,21 @@ const server = http.createServer(async (req, res) => {
       meta.history = [];
       meta.prompt = "";
       saveDb();
+      return json(res, 200, { ok: true });
+    }
+
+    // ---- 恢复该项目的上一版（改坏了能回退） ----
+    if (method === "POST" && pathname.startsWith("/api/studio/project/") && pathname.endsWith("/restore")) {
+      const user = currentUser(req);
+      if (!user || (user.role !== "developer" && user.role !== "admin")) {
+        return json(res, 403, { error: "只有开发者才能操作" });
+      }
+      const id = decodeURIComponent(pathname.split("/")[4] || "");
+      const meta = db.aiGames[id];
+      if (!meta || meta.ownerId !== user.id) return json(res, 404, { error: "未找到该项目，或无权操作" });
+      const bak = path.join(DATA_DIR, "studio", id + ".bak.html");
+      if (!fs.existsSync(bak)) return json(res, 404, { error: "没有可恢复的上一版" });
+      fs.copyFileSync(bak, path.join(DATA_DIR, "studio", id + ".html"));
       return json(res, 200, { ok: true });
     }
 
