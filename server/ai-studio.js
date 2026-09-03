@@ -195,15 +195,15 @@ async function callAI({ prompt, title, images, sourceHtml }) {
     : (process.env.AI_MODEL || "deepseek-chat");
   const isModify = !!sourceHtml;
   const sys = isModify
-    ? "你是一个网页游戏生成器。用户会说明这是对某个已有游戏的修改要求。请在保留原游戏核心玩法的基础上，按要求调整，重新输出一个完整、可运行的、单文件 HTML5 小游戏。要求：把所有 CSS 和 JavaScript 内联在一个 <html> 文件里；不要用外部库或网络请求；用中文；界面简洁现代；有开始界面和分数。只输出代码本身，不要额外解释。"
-    : "你是一个网页游戏生成器。请根据用户的提示词，输出一个完整、可运行的、单文件 HTML5 小游戏。要求：把所有 CSS 和 JavaScript 内联在一个 <html> 文件里；不要用外部库或网络请求；用中文；界面简洁现代；有开始界面和分数。只输出代码本身，不要额外解释。";
+    ? "你是一个网页游戏生成器。用户要求修改某已有游戏。请在保留原玩法基础上，按用户要求重新输出一个完整、可运行、单文件 HTML5 游戏。所有 CSS/JS 内联；禁止外部库（尤其 three.js 这类 CDN）；中文界面；有开始界面和分数；用户可用文字要求 2D 或 3D（3D 用 CSS 3D 变换/Canvas 伪 3D/WebGL 实现，若难做好就做精致的 2D）。只输出完整可运行的代码本身，不要任何解释。"
+    : "你是一个网页游戏生成器。请根据用户的提示词，输出一个完整、可运行、单文件 HTML5 游戏。要求：把所有 CSS 和 JavaScript 内联在一个 <html> 文件里；禁止外部库或网络请求（尤其禁止 three.js 等 CDN 库）；用中文；界面精致；有开始界面和分数。用户可以用文字要求 2D 或 3D：3D 请用 CSS 3D 变换、Canvas 伪 3D 投影或 WebGL 实现；若确实难以做出像样的 3D，就做一个精致的 2D 即可。只输出完整可运行的代码本身，不要任何额外解释。";
   const lead = isModify ? `这是对已有游戏《${title || "未命名"}》的修改要求，请重新生成一个完整可玩的游戏并体现这些改动。` : "";
   const userText = lead + "\n需求：" + prompt;
   const userContent = (images && images.length)
     ? [{ type: "text", text: userText }, ...images.slice(0, 4).map((u) => ({ type: "image_url", image_url: { url: u } }))]
     : userText;
   const messages = [{ role: "system", content: sys }, { role: "user", content: userContent }];
-  const body = { model, temperature: 0.8, max_tokens: 6000, messages };
+  const body = { model, temperature: 0.8, max_tokens: 10000, messages };
   const post = (m) => fetch(base + "/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
@@ -239,7 +239,7 @@ async function generateGame({ prompt, title, images, sourceHtml }) {
       const r = await callAI({ prompt: pt, title: t, images, sourceHtml });
       const out = makeOffline(r.html);
       // 校验：AI 返回必须是完整的游戏（足够长且含脚本/画布），否则视为失败
-      if (out.length < 1200 || !/<script[\s>]/i.test(out)) {
+      if (out.length < 600 || !(/<script[\s>]/i.test(out) || /<canvas[\s>]/i.test(out))) {
         throw new Error("AI 返回内容过短或非完整游戏代码");
       }
       return { html: out, title: t, note: sourceHtml ? "AI 修改" : "AI 生成", usedAI: true, usage: r.usage };
