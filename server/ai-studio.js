@@ -217,17 +217,25 @@ async function callAI({ prompt, title, images, sourceHtml, models }) {
   const model = process.env.AI_MODEL || "deepseek-chat";
   const isModify = !!sourceHtml;
   const sys = isModify
-    ? "你是一个网页游戏生成器。用户要求修改某已有游戏。请在保留原玩法基础上，按用户要求重新输出一个完整、可运行、单文件 HTML5 游戏。所有 CSS/JS 内联；除 three.js（3D 引擎）外不要用其它外部库；中文界面；有开始界面和分数；用户可用文字要求 2D 或 3D：若做 3D，可直接引入 three.js（用 <script src=\"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js\"></script>），并可从 CDN 引入 examples/jsm/loaders/GLTFLoader.js 加载模型与动画；若模型带动画剪辑，请用 THREE.AnimationMixer 播放并随状态切换（Idle/Walk/Run/Action 等）。若做不出好的 3D 就做精致的 2D。开始界面务必能进入游戏：点击页面任意位置或按任意键即开始（要真正绑定事件）。只输出完整可运行的代码本身，不要任何解释。"
+    ? "你是一个网页游戏修改器。你接下来会收到一个现有游戏的完整代码，以及一条修改要求。请**只**按这条要求修改现有代码，其它逻辑、样式、结构、画面保持不变；输出修改后的完整、可运行、单文件 HTML5 游戏。所有 CSS/JS 内联；除 three.js（3D 引擎）外不要用其它外部库；中文界面；有开始界面和分数；若做 3D 可用 three.js（从 CDN <script src=\"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js\"></script> 引入），并可用 GLTFLoader 加载模型、AnimationMixer 播放动画。开始界面点击页面任意位置或按任意键即开始。只输出修改后的完整代码本身，不要任何解释。"
     : "你是一个网页游戏生成器。请根据用户的提示词，输出一个完整、可运行、单文件 HTML5 游戏。要求：把所有 CSS 和 JavaScript 内联在一个 <html> 文件里；除 three.js（3D 引擎）外不要用其它外部库；用中文；界面精致；有开始界面和分数。用户可以用文字要求 2D 或 3D：若做 3D，可直接引入 three.js（用 <script src=\"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js\"></script>），并可从 CDN 引入 examples/jsm/loaders/GLTFLoader.js 加载 .glb 模型与动画；若模型带动画剪辑，请用 THREE.AnimationMixer 播放并随游戏状态切换（Idle/Walk/Run/Action 等）。若确实难以做出像样的 3D，就做一个精致的 2D 即可。开始界面务必能进入游戏：点击页面任意位置或按任意键即开始（要真正绑定事件）。只输出完整可运行的代码本身，不要任何额外解释。";
-  const lead = isModify ? `这是对已有游戏《${title || "未命名"}》的修改要求，请重新生成一个完整可玩的游戏并体现这些改动。` : "";
-  let userText = lead + "\n需求：" + prompt;
+  const lead = isModify ? "修改要求：" : "需求：";
+  let userText = lead + "\n" + prompt;
   if (imageDesc) userText += "\n\n（参考图风格参考：）" + imageDesc.slice(0, 500);
   if (models && models.length) {
     userText += "\n\n（本站可用的 3D 模型，可在游戏里用 GLTFLoader 从下面路径加载：）\n"
       + models.map((m) => "- " + m.url + "（" + m.name + "）").join("\n")
       + "\n如果模型自带动画剪辑，请用 THREE.AnimationMixer 播放角色动画。";
   }
-  const messages = [{ role: "system", content: sys }, { role: "user", content: userText }];
+  const messages = [{ role: "system", content: sys }];
+  if (sourceHtml) {
+    messages.push({
+      role: "user",
+      content: "这是当前游戏《" + (title || "未命名") + "》的完整代码，请在其基础上**仅**按后面的要求修改，其它部分保持原样：\n```html\n"
+        + String(sourceHtml).slice(0, 30000) + "\n```\n只输出修改后的完整单文件 html。",
+    });
+  }
+  messages.push({ role: "user", content: userText });
   const res = await postChat(base, key, { model, temperature: 0.8, max_tokens: 10000, messages });
   if (!res.ok) {
     const txt = await res.text().catch(() => "");

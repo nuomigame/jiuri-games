@@ -804,13 +804,13 @@ const server = http.createServer(async (req, res) => {
         if (fs.existsSync(f)) sourceHtml = fs.readFileSync(f, "utf8");
       }
       // 每次修改都记录进历史，并让 AI 结合全部累积要求，避免推倒重来
-      let aiPrompt = prompt;
       let history = [prompt];
       if (meta) {
         history = (Array.isArray(meta.history) ? meta.history.slice() : [meta.prompt || ""]).filter(Boolean);
         history.push(prompt);
-        aiPrompt = history.join("\n");
       }
+      // 在基础上修改：AI 会拿到现有游戏代码 + 最新这一条要求（历史仅用于记录展示）
+      const aiPrompt = prompt;
       let generation;
       try {
         const models = db.models
