@@ -16,14 +16,23 @@
 
   async function loadMe() {
     const cfg = await api("/api/config");
-    price = cfg.data.pricePerGame || 0;
-    $("#priceHint").textContent = "每次生成：" + (price > 0 ? f(price) : "免费（内置生成）");
+    price = cfg.data.minChargeCents || 0;
+    const minC = cfg.data.minChargeCents || 0, maxC = cfg.data.maxChargeCents || 0;
+    $("#priceHint").textContent = "按当次生成消耗 token 计费，" + (minC ? "约 " + f(minC) + " 起" : "免费") + (maxC ? "，最高 " + f(maxC) : "");
     const r = await api("/api/me");
     me = r.data.user || null;
+    const isDev = !!(me && (me.role === "developer" || me.role === "admin"));
     if (me) {
-      balance = r.data.balance || 0;
       navAuthBtn.textContent = `${me.username} · 退出`;
       navAuthBtn.dataset.logged = "1";
+    } else {
+      navAuthBtn.textContent = "登录 / 注册";
+    }
+    $("#gateBlock").hidden = isDev;
+    $("#studioGrid").hidden = !isDev;
+    $("#previewCard").hidden = true;
+    if (isDev) {
+      balance = r.data.balance || 0;
       $("#balanceBtn").hidden = false;
       $("#balanceBtn").textContent = "账户余额：" + f(balance);
       $("#rechargeLink").hidden = !(balance < price);
@@ -31,11 +40,9 @@
       $("#genBtn").textContent = "生成游戏";
       loadProjects();
     } else {
-      navAuthBtn.textContent = "登录 / 注册";
       $("#balanceBtn").hidden = true;
       $("#rechargeLink").hidden = true;
       $("#genBtn").disabled = true;
-      $("#genBtn").textContent = "登录后即可生成";
     }
     $("#balHint").textContent = "余额：" + f(balance);
   }
@@ -84,6 +91,7 @@
   const genBtn = $("#genBtn");
   genBtn.addEventListener("click", async () => {
     if (!me) { toast("请先登录后再生成"); location.href = "/"; return; }
+    if (me.role !== "developer" && me.role !== "admin") { toast("只有注册开发者才能使用 AI 工坊"); return; }
     const prompt = $("#promptInput").value.trim();
     const title = $("#titleInput").value.trim();
     if (!prompt) { toast("请填写提示词"); return; }
@@ -107,7 +115,8 @@
       $("#balHint").textContent = "余额：" + f(balance);
       $("#balanceBtn").textContent = "账户余额：" + f(balance);
       $("#rechargeLink").hidden = !(balance < price);
-      $("#genNote").textContent = d.note || "AI 生成";
+      const chargeNote = d.tokensUsed ? (" · " + d.tokensUsed + " tokens · 扣 " + f(d.charge)) : "";
+      $("#genNote").textContent = (d.note || "AI 生成") + chargeNote;
       $("#pubTitle").value = d.title || title;
       $("#frameWrap").innerHTML = `<iframe src="${d.url}" loading="lazy" allow="fullscreen; autoplay"></iframe>`;
       $("#previewCard").hidden = false;

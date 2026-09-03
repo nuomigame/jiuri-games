@@ -38,7 +38,16 @@
       <p class="studio-sub">写下你想要的游戏类型和玩法，AI 会生成一个能直接玩的网页小游戏，之后你可以一键发布到这个网站。每次 AI 生成会从你的余额中扣除对应费用。</p>
     </section>
 
-    <div class="studio-grid">
+    <div class="studio-gate" id="gateBlock" hidden>
+      <h2 class="studio-gate-title">AI 游戏工坊<span>仅限注册开发者</span>使用</h2>
+      <p class="studio-gate-sub">登录并申请成为开发者后，你就能用 AI 生成 / 修改游戏，并一键发布到这个网站。</p>
+      <div class="studio-gate-actions">
+        <a class="btn btn-primary" href="/developer">登录 / 申请开发者</a>
+        <a class="btn btn-ghost" href="/store">先去商店逛逛</a>
+      </div>
+    </div>
+
+    <div class="studio-grid" id="studioGrid">
       <section class="studio-card">
         <h2 class="card-h">① 描述你的游戏</h2>
         <label class="field"><span class="field-label">我的项目（可选，选一个来修改之前用 AI 生成的游戏）</span><select id="projectSelect"><option value="">＋ 新建一个游戏</option></select></label>
@@ -53,7 +62,7 @@
             <div class="shot-list" id="imgList"></div>
             <div class="cover-controls">
               <label class="upload-btn"><input type="file" id="imgFile" accept="image/*" multiple hidden />添加参考图</label>
-              <p class="cover-hint">最多 3 张。当前 DeepSeek 模型暂不识别图片，将按你写的文字要求处理。</p>
+              <p class="cover-hint">最多 3 张。当前为视觉模型，AI 会参考你上传的图片风格。</p>
             </div>
           </div>
         </div>

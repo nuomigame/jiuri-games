@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/admin.css?v=7" />
+  <link rel="stylesheet" href="/css/admin.css?v=8" />
 </head>
 <body>
   <!-- Gate -->
@@ -127,6 +127,14 @@
           <div class="settings-grid">
             <label class="field"><span class="field-label">AI 模型</span><input type="text" name="aiModel" id="aiModelInput" placeholder="deepseek-chat" /></label>
           </div>
+          <div class="settings-grid">
+            <label class="field"><span class="field-label">你的成本：元 / 百万 token</span><input type="number" name="costPerMillionTokens" id="costInput" min="0" step="0.1" /></label>
+            <label class="field"><span class="field-label">差价倍率（成本 × 倍率 = 玩家价）</span><input type="number" name="margin" id="marginInput" min="1" step="0.1" /></label>
+          </div>
+          <div class="settings-grid">
+            <label class="field"><span class="field-label">单次最低收费（元）</span><input type="number" name="minChargeCents" id="minChargeInput" min="0" step="0.1" /></label>
+            <label class="field"><span class="field-label">单次最高收费（元）</span><input type="number" name="maxChargeCents" id="maxChargeInput" min="0" step="1" /></label>
+          </div>
           <div class="cover-block">
             <span class="field-label">你的收款码（玩家扫码支付，你确认后到账）</span>
             <div class="cover-row">
@@ -242,6 +250,6 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="/js/admin.js?v=7"></script>
+  <script src="/js/admin.js?v=8"></script>
 </body>
 </html>

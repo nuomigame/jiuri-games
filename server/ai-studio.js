@@ -181,7 +181,7 @@ async function callAI({ prompt, title, images, sourceHtml }) {
   const key = process.env.AI_API_KEY;
   if (!key) throw new Error("未配置 AI_API_KEY");
   const base = (process.env.AI_BASE_URL || "https://api.deepseek.com").replace(/\/+$/, "");
-  const model = process.env.AI_MODEL || "deepseek-chat";
+  const model = process.env.AI_MODEL || "deepseek-v4-flash-vision-exp";
   const sys = sourceHtml
     ? "你是一个网页游戏修改器。用户给你一个现有的单文件 HTML5 小游戏以及修改要求。请在原代码基础上按要求修改，输出修改后的完整、可运行、单文件 HTML5 游戏。所有 CSS 和 JS 内联；不用外部库或网络请求；中文界面；只输出代码本身。"
     : "你是一个网页游戏生成器。请根据用户的提示词，输出一个完整、可运行的、单文件 HTML5 小游戏。要求：把所有 CSS 和 JavaScript 内联在一个 <html> 文件里；不要用外部库或网络请求；用中文；界面简洁现代；有开始界面和分数。只输出代码本身，不要额外解释。";
@@ -209,7 +209,8 @@ async function callAI({ prompt, title, images, sourceHtml }) {
   }
   const data = await res.json();
   const content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-  return extractHtml(content);
+  const usage = (data && data.usage) || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+  return { html: extractHtml(content), usage };
 }
 
 // ---------------------------------------------------------------------------
@@ -220,8 +221,8 @@ async function generateGame({ prompt, title, images, sourceHtml }) {
   const t = (title || "").trim() || "AI 生成小游戏";
   if (process.env.AI_API_KEY) {
     try {
-      const html = await callAI({ prompt: pt, title: t, images, sourceHtml });
-      return { html, title: t, note: sourceHtml ? "AI 修改" : "AI 生成", usedAI: true };
+      const r = await callAI({ prompt: pt, title: t, images, sourceHtml });
+      return { html: r.html, title: t, note: sourceHtml ? "AI 修改" : "AI 生成", usedAI: true, usage: r.usage };
     } catch (e) {
       if (sourceHtml) return { html: sourceHtml, title: t, usedAI: false, note: "AI 修改失败，已保留原游戏：" + e.message };
       const fb = proceduralGame(pt, t);

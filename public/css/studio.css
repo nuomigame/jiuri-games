@@ -12,6 +12,11 @@
 .studio-title { font-size: clamp(34px, 4.5vw, 56px); font-weight: 900; letter-spacing: -0.02em; }
 .studio-title span { color: var(--accent); }
 .studio-sub { color: var(--muted); max-width: 640px; margin: 16px auto 0; line-height: 1.7; }
+.studio-gate { text-align: center; padding: 60px 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); max-width: 620px; margin: 0 auto; }
+.studio-gate-title { font-size: 28px; font-weight: 900; }
+.studio-gate-title span { color: var(--accent); }
+.studio-gate-sub { color: var(--muted); margin: 14px 0 22px; line-height: 1.7; }
+.studio-gate-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .studio-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 26px; align-items: start; }
 .studio-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; }
 .card-h { font-size: 18px; font-weight: 800; margin-bottom: 18px; }

@@ -71,6 +71,10 @@ function loadDb() {
   if (typeof db.settings.aiApiKey !== "string") db.settings.aiApiKey = process.env.AI_API_KEY || "";
   if (typeof db.settings.aiBaseUrl !== "string") db.settings.aiBaseUrl = process.env.AI_BASE_URL || "";
   if (typeof db.settings.aiModel !== "string") db.settings.aiModel = process.env.AI_MODEL || "";
+  if (typeof db.settings.costPerMillionTokens !== "number") db.settings.costPerMillionTokens = 20; // 元/百万 token（你的真实成本价）
+  if (typeof db.settings.margin !== "number") db.settings.margin = 2; // 差价倍率：成本 × 2 = 玩家价
+  if (typeof db.settings.minChargeCents !== "number") db.settings.minChargeCents = 50; // 单次最低 0.5 元
+  if (typeof db.settings.maxChargeCents !== "number") db.settings.maxChargeCents = 3000; // 单次封顶 30 元
   ensureAdmin();
   // 早期官方游戏没有归属：统一归到主管理员，便于显示“制作人”
   const mainAdmin = db.users.find((u) => u.username === "admin");
@@ -414,6 +418,10 @@ const server = http.createServer(async (req, res) => {
         pricePerGame: db.settings.pricePerGame || 0,
         minRecharge: db.settings.minRecharge || 100,
         rechargeQr: db.settings.rechargeQr || "",
+        costPerMillionTokens: db.settings.costPerMillionTokens || 0,
+        margin: db.settings.margin || 1,
+        minChargeCents: db.settings.minChargeCents || 0,
+        maxChargeCents: db.settings.maxChargeCents || 0,
       });
     }
 
@@ -643,17 +651,24 @@ const server = http.createServer(async (req, res) => {
     if (method === "POST" && pathname === "/api/studio/generate") {
       const user = currentUser(req);
       if (!user) return json(res, 401, { error: "请先登录后再生成" });
+      if (user.role !== "developer" && user.role !== "admin") {
+        return json(res, 403, { error: "只有注册开发者才能使用 AI 工坊", needDeveloper: true });
+      }
       const body = await parseJson(req);
       const prompt = sanitizeText(body.prompt, 1200);
       const title = sanitizeText(body.title, 60);
       if (!prompt) return json(res, 400, { error: "请填写游戏提示词" });
-      const price = db.settings && db.settings.pricePerGame ? db.settings.pricePerGame : 0;
-      // 先检查余额：不足则直接拒绝，避免白白调用 AI 产生费用
-      if (price > 0 && (user.balance || 0) < price) {
+      // 按生成实际消耗 token 计费，再加差价
+      const costPerM = Number(db.settings.costPerMillionTokens) || 0; // 元/百万 token（你的成本）
+      const margin = Number(db.settings.margin) || 1; // 差价倍率
+      const minCharge = Number(db.settings.minChargeCents) || 0; // 分
+      const maxCharge = Number(db.settings.maxChargeCents) || 0; // 分
+      // 余额至少够最低费用才继续，避免白白调用 AI
+      if (minCharge > 0 && (user.balance || 0) < minCharge) {
         return json(res, 402, {
-          error: "余额不足，请先充值后再生成",
+          error: "余额不足，请先充值（本次至少 " + (minCharge / 100).toFixed(2) + " 元）",
           needBalance: true,
-          price,
+          price: minCharge,
           balance: user.balance || 0,
         });
       }
@@ -679,10 +694,16 @@ const server = http.createServer(async (req, res) => {
         return json(res, 500, { error: "生成失败：" + e.message });
       }
       const usedAI = !!generation.usedAI;
-      // 仅在真正调用 AI 时扣费（内置生成器免费）
-      if (usedAI && price > 0) {
-        user.balance -= price;
+      let charge = 0, tokensUsed = 0;
+      if (usedAI && costPerM > 0) {
+        const u = generation.usage || {};
+        tokensUsed = (Number(u.prompt_tokens) || 0) + (Number(u.completion_tokens) || 0);
+        const costCents = Math.round((tokensUsed / 1e6) * costPerM * 100);
+        let raw = Math.round(costCents * margin);
+        charge = Math.max(minCharge, Math.min(maxCharge, raw));
+        charge = Math.min(charge, user.balance || 0); // 不扣成负数
       }
+      if (charge > 0) user.balance -= charge;
       if (!id) id = uid();
       const dir = path.join(DATA_DIR, "studio");
       fs.mkdirSync(dir, { recursive: true });
@@ -704,7 +725,10 @@ const server = http.createServer(async (req, res) => {
         title: generation.title || title || "AI 小游戏",
         note: generation.note,
         usedAI,
-        price,
+        charge,
+        tokensUsed,
+        minCharge,
+        maxCharge,
         balance: user.balance || 0,
       });
     }
@@ -713,6 +737,9 @@ const server = http.createServer(async (req, res) => {
     if (method === "GET" && pathname === "/api/studio/my") {
       const user = currentUser(req);
       if (!user) return json(res, 401, { error: "请先登录" });
+      if (user.role !== "developer" && user.role !== "admin") {
+        return json(res, 403, { error: "只有注册开发者才能使用 AI 工坊", needDeveloper: true });
+      }
       const list = Object.values(db.aiGames)
         .filter((g) => g.ownerId === user.id)
         .sort((a, b) => b.createdAt - a.createdAt)
@@ -724,6 +751,9 @@ const server = http.createServer(async (req, res) => {
     if (method === "POST" && pathname === "/api/studio/publish") {
       const user = currentUser(req);
       if (!user) return json(res, 401, { error: "请先登录后再发布" });
+      if (user.role !== "developer" && user.role !== "admin") {
+        return json(res, 403, { error: "只有注册开发者才能发布 AI 游戏", needDeveloper: true });
+      }
       const body = await parseJson(req);
       const id = sanitizeText(body.id, 60);
       const meta = db.aiGames[id];
@@ -922,6 +952,10 @@ const server = http.createServer(async (req, res) => {
           aiApiKey: db.settings.aiApiKey || "",
           aiBaseUrl: db.settings.aiBaseUrl || "",
           aiModel: db.settings.aiModel || "",
+          costPerMillionTokens: db.settings.costPerMillionTokens || 0,
+          margin: db.settings.margin || 1,
+          minChargeCents: db.settings.minChargeCents || 0,
+          maxChargeCents: db.settings.maxChargeCents || 0,
         });
       }
       if (method === "PUT" && pathname === "/api/admin/settings") {
@@ -947,6 +981,22 @@ const server = http.createServer(async (req, res) => {
           db.settings.aiModel = sanitizeText(body.aiModel, 100);
           if (db.settings.aiModel) process.env.AI_MODEL = db.settings.aiModel;
         }
+        if (body.costPerMillionTokens !== undefined) {
+          const v = Math.max(0, Number(body.costPerMillionTokens) || 0);
+          db.settings.costPerMillionTokens = v;
+        }
+        if (body.margin !== undefined) {
+          const v = Math.max(0, Number(body.margin) || 1);
+          db.settings.margin = v;
+        }
+        if (body.minChargeCents !== undefined) {
+          const v = Math.max(0, Math.round(Number(body.minChargeCents) || 0));
+          db.settings.minChargeCents = v;
+        }
+        if (body.maxChargeCents !== undefined) {
+          const v = Math.max(0, Math.round(Number(body.maxChargeCents) || 0));
+          db.settings.maxChargeCents = v;
+        }
         saveDb();
         return json(res, 200, {
           pricePerGame: db.settings.pricePerGame,
@@ -955,6 +1005,10 @@ const server = http.createServer(async (req, res) => {
           aiApiKey: db.settings.aiApiKey,
           aiBaseUrl: db.settings.aiBaseUrl,
           aiModel: db.settings.aiModel,
+          costPerMillionTokens: db.settings.costPerMillionTokens,
+          margin: db.settings.margin,
+          minChargeCents: db.settings.minChargeCents,
+          maxChargeCents: db.settings.maxChargeCents,
         });
       }
 

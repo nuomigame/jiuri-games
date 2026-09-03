@@ -245,6 +245,10 @@
     $("#aiKeyInput").value = data.aiApiKey || "";
     $("#aiBaseInput").value = data.aiBaseUrl || "";
     $("#aiModelInput").value = data.aiModel || "";
+    $("#costInput").value = data.costPerMillionTokens || 0;
+    $("#marginInput").value = data.margin || 1;
+    $("#minChargeInput").value = (data.minChargeCents || 0) / 100;
+    $("#maxChargeInput").value = (data.maxChargeCents || 0) / 100;
     savedQr = data.rechargeQr || "";
     renderQr();
   }
@@ -273,6 +277,10 @@
           aiApiKey: $("#aiKeyInput").value.trim(),
           aiBaseUrl: $("#aiBaseInput").value.trim(),
           aiModel: $("#aiModelInput").value.trim(),
+          costPerMillionTokens: parseFloat($("#costInput").value || "0") || 0,
+          margin: parseFloat($("#marginInput").value || "1") || 1,
+          minChargeCents: Math.round(parseFloat($("#minChargeInput").value || "0") * 100),
+          maxChargeCents: Math.round(parseFloat($("#maxChargeInput").value || "0") * 100),
         }),
       });
       toast("设置已保存");
