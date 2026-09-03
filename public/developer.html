@@ -104,6 +104,35 @@
           </div>
           <div class="empty" id="myEmpty" hidden>你还没有发布过游戏，点击右上角「发布游戏」开始吧。</div>
         </section>
+
+        <section class="card">
+          <div class="card-head"><h2>我的模型库（3D 模型）</h2><span class="card-count" id="myModelCount">0 个</span></div>
+          <div class="cover-block">
+            <span class="field-label">上传 GLB 模型（AI 生成 3D 游戏时可自动加载）</span>
+            <div class="cover-row">
+              <div class="cover-controls">
+                <label class="upload-btn"><input type="file" id="modelFile" accept=".glb" hidden />选择 .glb 文件</label>
+                <p class="cover-hint">支持 .glb，小于 12MB。选择后会自动读取。</p>
+                <input type="text" id="modelName" placeholder="模型名称，例如：机器人" />
+              </div>
+              <div class="cover-controls">
+                <span class="field-label">可见性</span>
+                <div class="switcher" id="modelVis">
+                  <button type="button" data-vis="public" class="is-active">公开（所有人生成可用）</button>
+                  <button type="button" data-vis="private">私有（仅自己生成用）</button>
+                </div>
+                <button type="button" class="btn btn-primary" id="modelUpload">上传模型</button>
+              </div>
+            </div>
+          </div>
+          <div class="table-wrap" style="margin-top:14px">
+            <table class="table table-sm">
+              <thead><tr><th>名称</th><th>可见性</th><th class="ta-r">操作</th></tr></thead>
+              <tbody id="modelBody"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="modelEmpty" hidden>还没有上传模型。</div>
+        </section>
       </div>
     </main>
   </div>
@@ -164,6 +193,6 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="/js/developer.js?v=3"></script>
+  <script src="/js/developer.js?v=4"></script>
 </body>
 </html>

@@ -775,7 +775,10 @@ const server = http.createServer(async (req, res) => {
       }
       let generation;
       try {
-        generation = await studio.generateGame({ prompt, title, images, sourceHtml });
+        const models = db.models
+          .filter((m) => m.visibility === "public" || m.ownerId === user.id)
+          .map((m) => ({ name: m.name, url: "/models/" + m.file }));
+        generation = await studio.generateGame({ prompt, title, images, sourceHtml, models });
       } catch (e) {
         return json(res, 500, { error: "生成失败：" + e.message });
       }
@@ -976,6 +979,55 @@ const server = http.createServer(async (req, res) => {
       });
       saveDb();
       return json(res, 201, { ok: true });
+    }
+
+    // ---- 模型库：上传（开发者/管理员）、公开列表、我的模型、删除 ----
+    if (method === "POST" && pathname === "/api/models") {
+      const user = currentUser(req);
+      if (!user || (user.role !== "developer" && user.role !== "admin")) return json(res, 403, { error: "需要开发者权限" });
+      const body = await parseJson(req);
+      const name = sanitizeText(body.name, 80) || "未命名模型";
+      const data = String(body.data || "");
+      const m = data.match(/^data:[^;,]+;base64,(.+)$/);
+      if (!m) return json(res, 400, { error: "请上传 GLB 文件" });
+      const buf = Buffer.from(m[1], "base64");
+      if (buf.length > 12 * 1024 * 1024) return json(res, 400, { error: "模型不能超过 12MB" });
+      const visibility = body.visibility === "private" ? "private" : "public";
+      const id = uid();
+      const file = id + ".glb";
+      fs.mkdirSync(path.join(DATA_DIR, "models"), { recursive: true });
+      fs.writeFileSync(path.join(DATA_DIR, "models", file), buf);
+      db.models.push({ id, name, file, visibility, ownerId: user.id, createdAt: Date.now() });
+      saveDb();
+      return json(res, 201, { ok: true, model: { id, name, url: "/models/" + file, visibility } });
+    }
+    if (method === "GET" && pathname === "/api/models") {
+      const list = db.models
+        .filter((m) => m.visibility === "public")
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .map((m) => ({ id: m.id, name: m.name, url: "/models/" + m.file }));
+      return json(res, 200, { models: list });
+    }
+    if (method === "GET" && pathname === "/api/my/models") {
+      const user = currentUser(req);
+      if (!user || (user.role !== "developer" && user.role !== "admin")) return json(res, 403, { error: "需要开发者权限" });
+      const list = db.models
+        .filter((m) => m.ownerId === user.id)
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .map((m) => ({ id: m.id, name: m.name, url: "/models/" + m.file, visibility: m.visibility }));
+      return json(res, 200, { models: list });
+    }
+    if (method === "DELETE" && pathname.startsWith("/api/models/")) {
+      const user = currentUser(req);
+      if (!user || (user.role !== "developer" && user.role !== "admin")) return json(res, 403, { error: "需要开发者权限" });
+      const id = decodeURIComponent(pathname.split("/").pop());
+      const idx = db.models.findIndex((m) => m.id === id);
+      if (idx === -1) return json(res, 404, { error: "模型不存在" });
+      if (db.models[idx].ownerId !== user.id && user.role !== "admin") return json(res, 403, { error: "只能删除自己的模型" });
+      const [mm] = db.models.splice(idx, 1);
+      try { fs.unlinkSync(path.join(DATA_DIR, "models", mm.file)); } catch (e) {}
+      saveDb();
+      return json(res, 200, { ok: true });
     }
 
     // ---- Admin ----
@@ -1193,6 +1245,12 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { ok: true });
       }
 
+      if (method === "GET" && pathname === "/api/admin/models") {
+        const list = db.models.slice().sort((a, b) => b.createdAt - a.createdAt)
+          .map((m) => ({ id: m.id, name: m.name, url: "/models/" + m.file, visibility: m.visibility, ownerId: m.ownerId }));
+        return json(res, 200, { models: list });
+      }
+
       if (method === "POST" && pathname === "/api/admin/password") {
         const body = await parseJson(req);
         const oldPassword = sanitizeText(body.oldPassword, 200);
@@ -1294,6 +1352,19 @@ const server = http.createServer(async (req, res) => {
       fs.stat(f, (err, stats) => {
         if (err || !stats.isFile()) return handleNotFound(res);
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Last-Modified": stats.mtime.toUTCString() });
+        fs.createReadStream(f).pipe(res);
+      });
+      return;
+    }
+
+    // ---- 托管上传的 3D 模型（GLB）----
+    if (method === "GET" && pathname.startsWith("/models/")) {
+      const file = decodeURIComponent(pathname.replace("/models/", ""));
+      if (!/^[a-zA-Z0-9_\-]+\.glb$/i.test(file)) return handleNotFound(res);
+      const f = path.join(DATA_DIR, "models", file);
+      fs.stat(f, (err, stats) => {
+        if (err || !stats.isFile()) return handleNotFound(res);
+        res.writeHead(200, { "Content-Type": "model/gltf-binary", "Cache-Control": "public, max-age=86400", "Last-Modified": stats.mtime.toUTCString() });
         fs.createReadStream(f).pipe(res);
       });
       return;

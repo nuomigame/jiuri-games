@@ -205,7 +205,7 @@ async function describeImages(base, key, model, images) {
   return c || "";
 }
 
-async function callAI({ prompt, title, images, sourceHtml }) {
+async function callAI({ prompt, title, images, sourceHtml, models }) {
   const key = process.env.AI_API_KEY;
   if (!key) throw new Error("未配置 AI_API_KEY");
   const base = (process.env.AI_BASE_URL || "https://api.deepseek.com").replace(/\/+$/, "");
@@ -222,6 +222,10 @@ async function callAI({ prompt, title, images, sourceHtml }) {
   const lead = isModify ? `这是对已有游戏《${title || "未命名"}》的修改要求，请重新生成一个完整可玩的游戏并体现这些改动。` : "";
   let userText = lead + "\n需求：" + prompt;
   if (imageDesc) userText += "\n\n（参考图风格参考：）" + imageDesc.slice(0, 500);
+  if (models && models.length) {
+    userText += "\n\n（本站可用的 3D 模型，可在游戏里用 GLTFLoader 从下面路径加载：）\n"
+      + models.map((m) => "- " + m.url + "（" + m.name + "）").join("\n");
+  }
   const messages = [{ role: "system", content: sys }, { role: "user", content: userText }];
   const res = await postChat(base, key, { model, temperature: 0.8, max_tokens: 10000, messages });
   if (!res.ok) {
@@ -237,12 +241,12 @@ async function callAI({ prompt, title, images, sourceHtml }) {
 // ---------------------------------------------------------------------------
 // 对外入口
 // ---------------------------------------------------------------------------
-async function generateGame({ prompt, title, images, sourceHtml }) {
+async function generateGame({ prompt, title, images, sourceHtml, models }) {
   const pt = (prompt || "").trim() || "一个简单好玩的接水果小游戏";
   const t = (title || "").trim() || "AI 生成小游戏";
   if (process.env.AI_API_KEY) {
     try {
-      const r = await callAI({ prompt: pt, title: t, images, sourceHtml });
+      const r = await callAI({ prompt: pt, title: t, images, sourceHtml, models });
       const out = makeOffline(r.html);
       // 校验：AI 返回必须是完整的游戏（足够长且含脚本/画布），否则视为失败
       if (out.length < 600 || !(/<script[\s>]/i.test(out) || /<canvas[\s>]/i.test(out))) {

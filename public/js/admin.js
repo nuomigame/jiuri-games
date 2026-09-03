@@ -103,7 +103,7 @@
 
   // ---------- rendering ----------
   async function refreshAll() {
-    const [g] = await Promise.all([loadGames(), loadUsers(), loadApplications(), loadRecharges(), loadFeedback()]);
+    const [g] = await Promise.all([loadGames(), loadUsers(), loadApplications(), loadRecharges(), loadFeedback(), loadModels()]);
     $("#statFeatured").textContent = g.filter((x) => x.featured).length;
     $("#gameCountReal").textContent = g.length + " 款";
   }
@@ -287,6 +287,52 @@
       toast(action === "resolve" ? "已标记为已处理" : "已删除");
       await refreshAll();
     } catch (err) { toast(err.message); }
+  });
+
+  // ---- model library ----
+  let modelData = "";
+  let modelVis = "public";
+  $("#modelFile").addEventListener("change", () => {
+    const f = $("#modelFile").files[0];
+    if (!f) return;
+    if (f.size > 12 * 1024 * 1024) { toast("模型不能超过 12MB"); return; }
+    const r = new FileReader();
+    r.onload = () => { modelData = r.result; toast("已读取模型文件，填名称后点上传"); };
+    r.readAsDataURL(f);
+  });
+  $("#modelVis").addEventListener("click", (e) => { const b = e.target.closest("[data-vis]"); if (!b) return; modelVis = b.dataset.vis; $$("#modelVis button").forEach((x) => x.classList.toggle("is-active", x === b)); });
+  $("#modelUpload").addEventListener("click", async () => {
+    if (!modelData) { toast("请先选择 .glb 文件"); return; }
+    const name = $("#modelName").value.trim() || "未命名模型";
+    const btn = $("#modelUpload"); btn.disabled = true; btn.textContent = "上传中…";
+    try {
+      await api("/api/models", { method: "POST", body: JSON.stringify({ name, data: modelData, visibility: modelVis }) });
+      toast("已上传模型");
+      $("#modelFile").value = ""; modelData = ""; $("#modelName").value = "";
+      loadModels();
+    } catch (err) { toast(err.message); }
+    finally { btn.disabled = false; btn.textContent = "上传模型"; }
+  });
+  async function loadModels() {
+    const data = await api("/api/admin/models");
+    const list = data.models;
+    $("#modelCount").textContent = list.length + " 个";
+    const body = $("#modelBody"); const empty = $("#modelEmpty");
+    if (!list.length) { body.innerHTML = ""; empty.hidden = false; return; }
+    empty.hidden = true;
+    body.innerHTML = list.map((m) => `<tr>
+      <td class="game-row-title"><b>${esc(m.name)}</b></td>
+      <td><span class="pill ${m.visibility === "public" ? "dev" : "off"}">${m.visibility === "public" ? "公开" : "私有"}</span></td>
+      <td class="link-cell">${esc(m.url)}</td>
+      <td class="ta-r"><button class="btn btn-danger btn-mini" data-modeldel="${esc(m.id)}">删除</button></td>
+    </tr>`).join("");
+  }
+  $("#modelBody").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-modeldel]");
+    if (!b) return;
+    if (!confirm("确定删除这个模型？")) return;
+    try { await api("/api/models/" + b.dataset.modeldel, { method: "DELETE" }); toast("已删除"); loadModels(); }
+    catch (err) { toast(err.message); }
   });
 
   // ---- site settings (price / QR) ----
