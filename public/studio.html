@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/style.css?v=5" />
-  <link rel="stylesheet" href="/css/studio.css?v=8" />
+  <link rel="stylesheet" href="/css/studio.css?v=9" />
 </head>
 <body>
   <header class="studio-nav">
@@ -77,6 +77,7 @@
           <span id="balHint">余额：¥0.00</span>
         </div>
         <button class="btn btn-primary btn-block" id="genBtn">生成游戏</button>
+        <button class="btn btn-ghost btn-block" id="thinkBtn">🧠 查看 AI 思考过程</button>
         <p class="form-error" id="genError" hidden></p>
         <a class="recharge-link" id="rechargeLink" href="/recharge" hidden>余额不足？点这里充值 →</a>
       </section>
@@ -121,6 +122,15 @@
     </div>
   </div>
   <div class="toast" id="toast" hidden></div>
+  <div class="modal" id="thinkModal" hidden>
+    <div class="modal-backdrop" data-close-think></div>
+    <div class="modal-panel think-panel">
+      <button class="modal-close" data-close-think aria-label="关闭">×</button>
+      <p class="kicker">AI 思考过程</p>
+      <h2 class="modal-title">🧠 这项需求 AI 会怎么想</h2>
+      <div class="think-content" id="thinkContent"></div>
+    </div>
+  </div>
   <div class="modal" id="gameTestModal" hidden>
     <div class="modal-backdrop" data-close-test></div>
     <div class="modal-panel test-panel">
@@ -139,6 +149,6 @@
     </div>
   </div>
   <script src="/js/model-viewer.js?v=5"></script>
-  <script src="/js/studio.js?v=10"></script>
+  <script src="/js/studio.js?v=11"></script>
 </body>
 </html>

@@ -59,6 +59,8 @@
 .test-panel { width: min(88vw, 1200px); padding: 0; overflow: hidden; }
 .test-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; }
 .test-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+.think-panel { width: min(560px, 92vw); }
+.think-content { max-height: 60vh; overflow: auto; white-space: pre-wrap; font-size: 14px; line-height: 1.7; color: var(--txt-2); background: rgba(255,255,255,0.03); border: 1px solid var(--line-soft); border-radius: 10px; padding: 16px; }
 .studio-model { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 10px; margin-bottom: 8px; font-size: 13px; }
 .studio-model span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--txt-2); }
 .studio-model .proj-undo.sm { padding: 5px 10px; font-size: 12px; }

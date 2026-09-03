@@ -273,6 +273,25 @@ async function generateGame({ prompt, title, images, sourceHtml, models }) {
   return { ...fb, title: t, usedAI: false };
 }
 
+// 获取 AI 的“思考过程”（用推理模型 deepseek-reasoner）
+async function thinkAbout({ prompt, title }) {
+  const key = process.env.AI_API_KEY;
+  if (!key) throw new Error("未配置 AI_API_KEY");
+  const base = (process.env.AI_BASE_URL || "https://api.deepseek.com").replace(/\/+$/, "");
+  const model = "deepseek-reasoner";
+  const sys = "你是游戏设计师。请针对用户的游戏需求，用中文输出你的思考过程：玩法设计、结构、技术实现思路（2D/3D、动画、模型、音效）、可能出现的问题与解决。分条目、简洁，不超过 500 字。不要输出游戏代码，只输出思考。";
+  const res = await postChat(base, key, {
+    model,
+    messages: [{ role: "system", content: sys }, { role: "user", content: "游戏标题：" + (title || "未命名") + "\n需求：" + prompt }],
+    max_tokens: 1600,
+    temperature: 0.6,
+  });
+  if (!res.ok) throw new Error("思考接口错误 " + res.status);
+  const j = await res.json();
+  const m = j.choices && j.choices[0] && j.choices[0].message;
+  return (m && (m.reasoning_content || m.content)) || "";
+}
+
 function coverSvg(title, prompt) {
   const theme = pickTheme((prompt || "") + (title || ""));
   const t = (title || "AI 游戏").slice(0, 14);

@@ -892,6 +892,24 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { projects: list });
     }
 
+    // ---- AI 思考过程 ----
+    if (method === "POST" && pathname === "/api/studio/think") {
+      const user = currentUser(req);
+      if (!user || (user.role !== "developer" && user.role !== "admin")) {
+        return json(res, 403, { error: "需要开发者权限" });
+      }
+      const body = await parseJson(req);
+      const prompt = sanitizeText(body.prompt, 1500);
+      const title = sanitizeText(body.title, 60);
+      if (!prompt) return json(res, 400, { error: "请先填写提示词" });
+      try {
+        const thinking = await studio.thinkAbout({ prompt, title });
+        return json(res, 200, { thinking });
+      } catch (e) {
+        return json(res, 500, { error: "获取思考失败：" + e.message });
+      }
+    }
+
     // ---- 删除生成的项目（开发者/管理员，仅本人），连带删除已发布的那份 ----
     if (method === "DELETE" && pathname.startsWith("/api/studio/project/")) {
       const user = currentUser(req);

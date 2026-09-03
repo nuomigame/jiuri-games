@@ -251,6 +251,27 @@
     else { toast("已发布到网站！去商店看看吧 🎉"); btn.textContent = "已发布 ✓"; btn.disabled = true; setTimeout(() => { location.href = "/store"; }, 900); return; }
     btn.disabled = false; btn.textContent = "发布到网站";
   });
+  const thinkModal = $("#thinkModal");
+  const closeThink = () => { thinkModal.hidden = true; document.body.style.overflow = ""; };
+  $("#thinkBtn").addEventListener("click", async () => {
+    let prompt = $("#promptInput").value.trim();
+    if (!prompt && currentSourceId) {
+      const p = projects.find((x) => x.id === currentSourceId);
+      prompt = (p && ((p.history && p.history[p.history.length - 1]) || p.prompt)) || "";
+    }
+    if (!prompt) { toast("请先填写提示词，或选一个项目"); return; }
+    const btn = $("#thinkBtn"); btn.disabled = true; btn.textContent = "AI 思考中…";
+    $("#thinkContent").textContent = "AI 正在思考，请稍候…\n\n（推理模型需要一点时间）";
+    thinkModal.hidden = false; document.body.style.overflow = "hidden";
+    try {
+      const r = await api("/api/studio/think", { method: "POST", body: JSON.stringify({ prompt, title: $("#titleInput").value.trim() }) });
+      $("#thinkContent").textContent = r.data.thinking || "（未返回思考内容）";
+    } catch (err) {
+      $("#thinkContent").textContent = "获取思考失败：" + err.message;
+    } finally { btn.disabled = false; btn.textContent = "🧠 查看 AI 思考过程"; }
+  });
+  thinkModal.addEventListener("click", (e) => { if (e.target.closest("[data-close-think]")) closeThink(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !thinkModal.hidden) closeThink(); });
   const testModal = $("#gameTestModal");
   const closeTest = () => { testModal.hidden = true; document.body.style.overflow = ""; $("#testFrame").src = ""; };
   $("#studioThumb").addEventListener("click", () => {
