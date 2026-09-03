@@ -73,6 +73,7 @@ function loadDb() {
   if (typeof db.settings.aiApiKey !== "string") db.settings.aiApiKey = process.env.AI_API_KEY || "";
   if (typeof db.settings.aiBaseUrl !== "string") db.settings.aiBaseUrl = process.env.AI_BASE_URL || "";
   if (typeof db.settings.aiModel !== "string") db.settings.aiModel = process.env.AI_MODEL || "";
+  if (typeof db.settings.aiVisionModel !== "string") db.settings.aiVisionModel = process.env.AI_VISION_MODEL || "deepseek-v4-flash-vision-exp";
   if (typeof db.settings.costPerMillionTokens !== "number") db.settings.costPerMillionTokens = 20; // 元/百万 token（你的真实成本价）
   if (typeof db.settings.margin !== "number") db.settings.margin = 2; // 差价倍率：成本 × 2 = 玩家价
   if (typeof db.settings.minChargeCents !== "number") db.settings.minChargeCents = 50; // 单次最低 0.5 元
@@ -85,6 +86,7 @@ function loadDb() {
   if (!process.env.AI_API_KEY && db.settings && db.settings.aiApiKey) process.env.AI_API_KEY = db.settings.aiApiKey;
   if (!process.env.AI_BASE_URL && db.settings && db.settings.aiBaseUrl) process.env.AI_BASE_URL = db.settings.aiBaseUrl;
   if (!process.env.AI_MODEL && db.settings && db.settings.aiModel) process.env.AI_MODEL = db.settings.aiModel;
+  if (!process.env.AI_VISION_MODEL && db.settings && db.settings.aiVisionModel) process.env.AI_VISION_MODEL = db.settings.aiVisionModel;
   saveDb();
 }
 
@@ -1052,6 +1054,7 @@ const server = http.createServer(async (req, res) => {
           aiApiKey: db.settings.aiApiKey || "",
           aiBaseUrl: db.settings.aiBaseUrl || "",
           aiModel: db.settings.aiModel || "",
+          aiVisionModel: db.settings.aiVisionModel || "",
           costPerMillionTokens: db.settings.costPerMillionTokens || 0,
           margin: db.settings.margin || 1,
           minChargeCents: db.settings.minChargeCents || 0,
@@ -1082,6 +1085,10 @@ const server = http.createServer(async (req, res) => {
           db.settings.aiModel = sanitizeText(body.aiModel, 100);
           if (db.settings.aiModel) process.env.AI_MODEL = db.settings.aiModel;
         }
+        if (body.aiVisionModel !== undefined) {
+          db.settings.aiVisionModel = sanitizeText(body.aiVisionModel, 100);
+          if (db.settings.aiVisionModel) process.env.AI_VISION_MODEL = db.settings.aiVisionModel;
+        }
         if (body.costPerMillionTokens !== undefined) {
           const v = Math.max(0, Number(body.costPerMillionTokens) || 0);
           db.settings.costPerMillionTokens = v;
@@ -1107,6 +1114,7 @@ const server = http.createServer(async (req, res) => {
           aiApiKey: db.settings.aiApiKey,
           aiBaseUrl: db.settings.aiBaseUrl,
           aiModel: db.settings.aiModel,
+          aiVisionModel: db.settings.aiVisionModel,
           costPerMillionTokens: db.settings.costPerMillionTokens,
           margin: db.settings.margin,
           minChargeCents: db.settings.minChargeCents,

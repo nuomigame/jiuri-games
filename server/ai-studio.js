@@ -188,7 +188,11 @@ async function callAI({ prompt, title, images, sourceHtml }) {
   const key = process.env.AI_API_KEY;
   if (!key) throw new Error("未配置 AI_API_KEY");
   const base = (process.env.AI_BASE_URL || "https://api.deepseek.com").replace(/\/+$/, "");
-  const model = process.env.AI_MODEL || "deepseek-v4-flash-vision-exp";
+  // 有参考图 -> 用视觉模型；否则用更强的代码生成模型
+  const hasVision = images && images.length;
+  const model = hasVision
+    ? (process.env.AI_VISION_MODEL || "deepseek-v4-flash-vision-exp")
+    : (process.env.AI_MODEL || "deepseek-chat");
   const isModify = !!sourceHtml;
   const sys = isModify
     ? "你是一个网页游戏生成器。用户会说明这是对某个已有游戏的修改要求。请在保留原游戏核心玩法的基础上，按要求调整，重新输出一个完整、可运行的、单文件 HTML5 小游戏。要求：把所有 CSS 和 JavaScript 内联在一个 <html> 文件里；不要用外部库或网络请求；用中文；界面简洁现代；有开始界面和分数。只输出代码本身，不要额外解释。"

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/admin.css?v=11" />
+  <link rel="stylesheet" href="/css/admin.css?v=12" />
 </head>
 <body>
   <!-- Gate -->
@@ -137,7 +137,8 @@
             <label class="field"><span class="field-label">AI 接口地址</span><input type="text" name="aiBaseUrl" id="aiBaseInput" placeholder="https://api.deepseek.com" /></label>
           </div>
           <div class="settings-grid">
-            <label class="field"><span class="field-label">AI 模型</span><input type="text" name="aiModel" id="aiModelInput" placeholder="deepseek-chat" /></label>
+            <label class="field"><span class="field-label">AI 模型（生成代码用）</span><input type="text" name="aiModel" id="aiModelInput" placeholder="deepseek-chat" /></label>
+            <label class="field"><span class="field-label">AI 视觉模型（传参考图用）</span><input type="text" name="aiVisionModel" id="aiVisionInput" placeholder="deepseek-v4-flash-vision-exp" /></label>
           </div>
           <div class="settings-grid">
             <label class="field"><span class="field-label">你的成本：元 / 百万 token</span><input type="number" name="costPerMillionTokens" id="costInput" min="0" step="0.1" /></label>
@@ -273,6 +274,6 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="/js/admin.js?v=11"></script>
+  <script src="/js/admin.js?v=12"></script>
 </body>
 </html>
