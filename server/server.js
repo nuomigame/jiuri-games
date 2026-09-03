@@ -5,8 +5,18 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const studio = require("./ai-studio");
 
 const ROOT = path.join(__dirname, "..");
+// 本地密钥文件（已 gitignore，不会提交）：未设置环境变量时自动读取
+try {
+  if (!process.env.AI_API_KEY && fs.existsSync(path.join(ROOT, "secrets.local.json"))) {
+    const s = JSON.parse(fs.readFileSync(path.join(ROOT, "secrets.local.json"), "utf8"));
+    if (s.AI_API_KEY) process.env.AI_API_KEY = s.AI_API_KEY;
+    if (s.AI_BASE_URL) process.env.AI_BASE_URL = s.AI_BASE_URL;
+    if (s.AI_MODEL) process.env.AI_MODEL = s.AI_MODEL;
+  }
+} catch (e) { /* 忽略 */ }
 const PUBLIC = path.join(ROOT, "public");
 // 部署时可通过环境变量指定持久化目录（例如挂载的卷），默认保存在项目内
 const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, "data");
@@ -51,7 +61,13 @@ function loadDb() {
   // upgrade: ensure new fields exist even for an existing database
   if (!Array.isArray(db.applications)) db.applications = [];
   db.games = (db.games || []).map((g) => Object.assign({ type: "web", ownerId: null, status: (g.status || "approved"), images: [] }, g));
-  db.users = (db.users || []).map((u) => Object.assign({ liked: [], avatar: "", bio: "" }, u));
+  db.users = (db.users || []).map((u) => Object.assign({ liked: [], avatar: "", bio: "", balance: 0 }, u));
+  if (!db.aiGames || typeof db.aiGames !== "object") db.aiGames = {};
+  if (!Array.isArray(db.recharges)) db.recharges = [];
+  if (!db.settings || typeof db.settings !== "object") db.settings = {};
+  if (typeof db.settings.pricePerGame !== "number") db.settings.pricePerGame = 500; // 分，默认 5 元/次
+  if (!db.settings.rechargeQr) db.settings.rechargeQr = "";
+  if (!db.settings.minRecharge) db.settings.minRecharge = 100; // 分，默认 1 元
   ensureAdmin();
   // 早期官方游戏没有归属：统一归到主管理员，便于显示“制作人”
   const mainAdmin = db.users.find((u) => u.username === "admin");
@@ -86,6 +102,7 @@ function ensureAdmin() {
       liked: [],
       avatar: "",
       bio: "",
+      balance: 0,
     });
     saveDb();
   }
@@ -108,6 +125,7 @@ function createUser({ username, password, email = "" }) {
     liked: [],
     avatar: "",
     bio: "",
+    balance: 0,
   };
 }
 
@@ -331,6 +349,8 @@ function serveStatic(req, res, pathname) {
   if (pathname === "/user" || pathname === "/user/") rel = "user.html";
   if (rel.startsWith("user/")) rel = "user.html";
   if (pathname === "/store" || pathname === "/store/") rel = "store.html";
+  if (pathname === "/studio" || pathname === "/studio/") rel = "studio.html";
+  if (pathname === "/recharge" || pathname === "/recharge/") rel = "recharge.html";
   // 上传的封面存放在 UPLOADS（映射到 `/uploads/...`），其它静态资源在 PUBLIC。
   // 上传路径的磁盘名要去掉 `uploads/` 前缀（否则会拼成 uploads/uploads/xxx）。
   const isUpload = rel.startsWith("uploads/");
@@ -381,6 +401,15 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, name: "jiuri-games", time: Date.now() });
     }
 
+    // ---- 公开配置：定价 / 最低充值 / 收款码 ----
+    if (method === "GET" && pathname === "/api/config") {
+      return json(res, 200, {
+        pricePerGame: db.settings.pricePerGame || 0,
+        minRecharge: db.settings.minRecharge || 100,
+        rechargeQr: db.settings.rechargeQr || "",
+      });
+    }
+
     // ---- Auth ----
     if (method === "POST" && pathname === "/api/register") {
       const body = await parseJson(req);
@@ -428,6 +457,8 @@ const server = http.createServer(async (req, res) => {
         devApplication: app
           ? { status: "pending" }
           : (user.role === "developer" ? { status: "approved" } : null),
+        balance: user.balance || 0,
+        pricePerGame: db.settings.pricePerGame || 0,
       });
     }
 
@@ -601,6 +632,142 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true });
     }
 
+    // ---- AI 工坊：生成一个游戏（需登录，扣费） ----
+    if (method === "POST" && pathname === "/api/studio/generate") {
+      const user = currentUser(req);
+      if (!user) return json(res, 401, { error: "请先登录后再生成" });
+      const body = await parseJson(req);
+      const prompt = sanitizeText(body.prompt, 1200);
+      const title = sanitizeText(body.title, 60);
+      if (!prompt) return json(res, 400, { error: "请填写游戏提示词" });
+      const price = db.settings && db.settings.pricePerGame ? db.settings.pricePerGame : 0;
+      let generation;
+      try {
+        generation = await studio.generateGame({ prompt, title });
+      } catch (e) {
+        return json(res, 500, { error: "生成失败：" + e.message });
+      }
+      const usedAI = !!generation.usedAI;
+      // 仅在真正调用 AI 时扣费（内置生成器免费）
+      if (usedAI && price > 0) {
+        if ((user.balance || 0) < price) {
+          return json(res, 402, {
+            error: "余额不足，请先充值后再生成",
+            needBalance: true,
+            price,
+            balance: user.balance || 0,
+          });
+        }
+        user.balance -= price;
+      }
+      const id = uid();
+      const dir = path.join(DATA_DIR, "studio");
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, id + ".html"), generation.html, "utf8");
+      db.aiGames[id] = {
+        id,
+        ownerId: user.id,
+        title: generation.title || title || "AI 小游戏",
+        prompt,
+        usedAI,
+        createdAt: Date.now(),
+      };
+      saveDb();
+      return json(res, 201, {
+        ok: true,
+        id,
+        url: "/play/" + id,
+        title: generation.title || title || "AI 小游戏",
+        note: generation.note,
+        usedAI,
+        price,
+        balance: user.balance || 0,
+      });
+    }
+
+    // ---- AI 工坊：发布生成的游戏到网站 ----
+    if (method === "POST" && pathname === "/api/studio/publish") {
+      const user = currentUser(req);
+      if (!user) return json(res, 401, { error: "请先登录后再发布" });
+      const body = await parseJson(req);
+      const id = sanitizeText(body.id, 60);
+      const meta = db.aiGames[id];
+      if (!meta || meta.ownerId !== user.id) return json(res, 404, { error: "未找到该生成记录，或无权发布" });
+      const file = path.join(DATA_DIR, "studio", id + ".html");
+      if (!fs.existsSync(file)) return json(res, 404, { error: "游戏文件不存在，请重新生成" });
+      const title = sanitizeText(body.title, 80) || meta.title;
+      const description = sanitizeText(body.description, 600) || "由 AI 工坊生成的网页小游戏，点开即玩。";
+      const tagsArr = Array.isArray(body.tags)
+        ? body.tags.map((t) => String(t).trim()).filter(Boolean).slice(0, 8)
+        : String(body.tags || "").split(/[,，\s]+/).map((t) => t.trim()).filter(Boolean).slice(0, 8);
+      const now = Date.now();
+      const game = {
+        id: uid(),
+        title,
+        link: "/play/" + id,
+        type: "web",
+        description,
+        cover: "/api/studio/cover/" + id,
+        images: [],
+        tags: tagsArr,
+        featured: false,
+        ownerId: user.id,
+        status: "approved", // 直接上架
+        createdAt: now,
+        updatedAt: now,
+        source: "ai",
+      };
+      db.games.push(game);
+      saveDb();
+      return json(res, 201, { ok: true, game: publicGame(game) });
+    }
+
+    // ---- AI 工坊：生成封面（SVG） ----
+    if (method === "GET" && pathname.startsWith("/api/studio/cover/")) {
+      const id = decodeURIComponent(pathname.replace("/api/studio/cover/", "").split("/")[0]);
+      const meta = db.aiGames[id];
+      const svg = studio.coverSvg(meta ? meta.title : "AI 游戏", meta ? meta.prompt : "");
+      res.writeHead(200, { "Content-Type": "image/svg+xml; charset=utf-8", "Cache-Control": "public, max-age=86400" });
+      return res.end(svg);
+    }
+
+    // ---- 玩家充值：提交充值单 ----
+    if (method === "POST" && pathname === "/api/recharge") {
+      const user = currentUser(req);
+      if (!user) return json(res, 401, { error: "请先登录" });
+      const body = await parseJson(req);
+      const amountCents = Math.max(0, Math.round(Number(body.amountCents) || 0));
+      const min = db.settings.minRecharge || 100;
+      if (amountCents < min) return json(res, 400, { error: "单笔充值不能低于 " + (min / 100).toFixed(2) + " 元" });
+      if (amountCents > 1000000) return json(res, 400, { error: "单笔充值不能超过 10000 元" });
+      const note = sanitizeText(body.note, 200);
+      db.recharges.push({
+        id: uid(),
+        userId: user.id,
+        username: user.username,
+        amountCents,
+        note,
+        createdAt: Date.now(),
+        status: "pending",
+      });
+      saveDb();
+      return json(res, 201, { ok: true, id: db.recharges[db.recharges.length - 1].id });
+    }
+
+    // ---- 我的充值记录 ----
+    if (method === "GET" && pathname === "/api/recharge/me") {
+      const user = currentUser(req);
+      if (!user) return json(res, 401, { error: "请先登录" });
+      const list = db.recharges.filter((r) => r.userId === user.id).sort((a, b) => b.createdAt - a.createdAt);
+      return json(res, 200, {
+        qr: db.settings.rechargeQr || "",
+        pricePerGame: db.settings.pricePerGame || 0,
+        minRecharge: db.settings.minRecharge || 100,
+        balance: user.balance || 0,
+        recharges: list,
+      });
+    }
+
     // ---- Admin ----
     if (method === "GET" && pathname === "/api/admin/session") {
       const user = currentUser(req);
@@ -678,6 +845,56 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { ok: true });
       }
 
+      // ---- 充值单：列表 / 确认到账 ----
+      if (method === "GET" && pathname === "/api/admin/recharges") {
+        const list = db.recharges.filter((r) => r.status === "pending").sort((a, b) => b.createdAt - a.createdAt);
+        return json(res, 200, { recharges: list });
+      }
+      const rcM = pathname.match(/^\/api\/admin\/recharges\/([^/]+)\/(approve|reject)$/);
+      if (method === "POST" && rcM) {
+        const id = decodeURIComponent(rcM[1]);
+        const action = rcM[2];
+        const rec = db.recharges.find((r) => r.id === id);
+        if (!rec) return json(res, 404, { error: "充值单不存在" });
+        if (action === "approve") {
+          const user = db.users.find((u) => u.id === rec.userId);
+          if (!user) return json(res, 400, { error: "用户不存在" });
+          user.balance = (user.balance || 0) + rec.amountCents;
+          rec.status = "approved";
+        } else {
+          rec.status = "rejected";
+        }
+        saveDb();
+        return json(res, 200, { ok: true });
+      }
+
+      // ---- 站点设置：定价 / 收款码 ----
+      if (method === "GET" && pathname === "/api/admin/settings") {
+        return json(res, 200, {
+          pricePerGame: db.settings.pricePerGame || 0,
+          minRecharge: db.settings.minRecharge || 100,
+          rechargeQr: db.settings.rechargeQr || "",
+        });
+      }
+      if (method === "PUT" && pathname === "/api/admin/settings") {
+        const body = await parseJson(req);
+        if (body.pricePerGame !== undefined) {
+          const v = Math.max(0, Math.round(Number(body.pricePerGame) || 0));
+          db.settings.pricePerGame = v;
+        }
+        if (body.minRecharge !== undefined) {
+          const v = Math.max(0, Math.round(Number(body.minRecharge) || 0));
+          db.settings.minRecharge = v;
+        }
+        if (body.rechargeQr !== undefined) db.settings.rechargeQr = sanitizeText(body.rechargeQr, 400);
+        saveDb();
+        return json(res, 200, {
+          pricePerGame: db.settings.pricePerGame,
+          minRecharge: db.settings.minRecharge,
+          rechargeQr: db.settings.rechargeQr,
+        });
+      }
+
       if (method === "POST" && pathname === "/api/admin/password") {
         const body = await parseJson(req);
         const oldPassword = sanitizeText(body.oldPassword, 200);
@@ -696,7 +913,9 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (method === "GET" && pathname === "/api/admin/users") {
-        const users = db.users.map(publicUser).sort((a, b) => b.createdAt - a.createdAt);
+        const users = db.users
+          .map((u) => Object.assign(publicUser(u), { balance: u.balance || 0 }))
+          .sort((a, b) => b.createdAt - a.createdAt);
         return json(res, 200, { users });
       }
       if (method === "PUT" && pathname.startsWith("/api/admin/users/")) {
@@ -767,6 +986,19 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { ok: true });
       }
       return json(res, 404, { error: "接口不存在" });
+    }
+
+    // ---- AI 工坊：播放生成的游戏 ----
+    if (method === "GET" && pathname.startsWith("/play/")) {
+      const id = decodeURIComponent(pathname.replace("/play/", "").split("/")[0]);
+      if (!/^[a-zA-Z0-9-]+$/.test(id)) return handleNotFound(res);
+      const f = path.join(DATA_DIR, "studio", id + ".html");
+      fs.stat(f, (err, stats) => {
+        if (err || !stats.isFile()) return handleNotFound(res);
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Last-Modified": stats.mtime.toUTCString() });
+        fs.createReadStream(f).pipe(res);
+      });
+      return;
     }
 
     // ---- Static ----

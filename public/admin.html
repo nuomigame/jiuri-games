@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/admin.css?v=6" />
+  <link rel="stylesheet" href="/css/admin.css?v=7" />
 </head>
 <body>
   <!-- Gate -->
@@ -60,6 +60,7 @@
         <div class="stat"><b id="statFeatured">0</b><span>精选游戏</span></div>
         <div class="stat"><b id="statPending">0</b><span>待审核游戏</span></div>
         <div class="stat"><b id="statApps">0</b><span>开发者申请</span></div>
+        <div class="stat"><b id="statRecharge">0</b><span>待确认充值</span></div>
         <div class="stat"><b id="statUsers">0</b><span>注册用户</span></div>
       </div>
 
@@ -102,11 +103,45 @@
       </section>
 
       <section class="card">
+        <div class="card-head"><h2>充值单</h2><span class="card-count" id="rcCount">0 条</span></div>
+        <div class="table-wrap">
+          <table class="table table-sm">
+            <thead><tr><th>用户</th><th>金额</th><th>备注</th><th class="ta-r">时间</th><th class="ta-r">操作</th></tr></thead>
+            <tbody id="rcBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="rcEmpty" hidden>暂时没有待确认的充值单。</div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>站点设置（定价 / 收款码）</h2></div>
+        <form class="security-form" id="settingsForm">
+          <div class="settings-grid">
+            <label class="field"><span class="field-label">每次 AI 生成扣费（元）</span><input type="number" name="pricePerGame" id="priceInput" min="0" step="1" /></label>
+            <label class="field"><span class="field-label">单笔最低充值（元）</span><input type="number" name="minRecharge" id="minInput" min="0" step="1" /></label>
+          </div>
+          <div class="cover-block">
+            <span class="field-label">你的收款码（玩家扫码支付，你确认后到账）</span>
+            <div class="cover-row">
+              <div class="cover-preview" id="qrPreview"><img src="" alt="" /></div>
+              <div class="cover-controls">
+                <label class="upload-btn"><input type="file" id="qrFile" accept="image/*" hidden />上传收款码</label>
+                <p class="cover-hint">支持 JPG / PNG / WebP，小于 8MB。也可粘贴图片链接：</p>
+                <input type="text" id="qrUrl" placeholder="https://... 收款码链接" />
+              </div>
+            </div>
+          </div>
+          <p class="form-error" id="settingsError" hidden></p>
+          <button type="submit" class="btn btn-primary" id="settingsBtn">保存设置</button>
+        </form>
+      </section>
+
+      <section class="card">
         <div class="card-head"><h2>注册用户</h2><span class="card-count" id="usersCount2">0 人</span></div>
         <div class="table-wrap">
           <table class="table table-sm">
             <thead>
-              <tr><th>用户名</th><th>邮箱</th><th>角色</th><th class="ta-r">注册时间</th><th class="ta-r">操作</th></tr>
+              <tr><th>用户名</th><th>邮箱</th><th>角色</th><th>余额</th><th class="ta-r">注册时间</th><th class="ta-r">操作</th></tr>
             </thead>
             <tbody id="usersBody"></tbody>
           </table>
@@ -200,6 +235,6 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="/js/admin.js?v=6"></script>
+  <script src="/js/admin.js?v=7"></script>
 </body>
 </html>

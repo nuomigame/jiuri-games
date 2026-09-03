@@ -53,7 +53,7 @@
     } else { authorWrap.hidden = true; }
     const play = E("#gmPlay");
     play.textContent = isDownload ? "下载游戏" : "开始游戏";
-    play.href = g.link && /^(https?:)?\/\//i.test(g.link) ? g.link : "#";
+    play.href = g.link && (/^(https?:)?\/\//i.test(g.link) || g.link.startsWith("/")) ? g.link : "#";
     modal.hidden = false;
     document.body.style.overflow = "hidden";
     renderSlide();

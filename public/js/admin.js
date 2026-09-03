@@ -60,6 +60,7 @@
     gate.hidden = true;
     dash.hidden = false;
     refreshAll();
+    loadSettings();
   }
 
   gateForm.addEventListener("submit", async (e) => {
@@ -90,7 +91,7 @@
 
   // ---------- rendering ----------
   async function refreshAll() {
-    const [g, u, a] = await Promise.all([loadGames(), loadUsers(), loadApplications()]);
+    const [g] = await Promise.all([loadGames(), loadUsers(), loadApplications(), loadRecharges()]);
     $("#statFeatured").textContent = g.filter((x) => x.featured).length;
     $("#gameCountReal").textContent = g.length + " 款";
   }
@@ -154,6 +155,7 @@
       <td class="game-row-title"><b>${esc(u.username)}</b></td>
       <td class="desc-cell">${esc(u.email || "—")}</td>
       <td><span class="pill ${roleClass}">${roleLabel}</span></td>
+      <td><span class="pill dev">¥${((u.balance || 0) / 100).toFixed(2)}</span></td>
       <td class="ta-r link-cell">${fmtDate(u.createdAt)}</td>
       <td class="ta-r"><div class="row-actions">${roleBtn}${delBtn}</div></td>
     </tr>`;
@@ -196,6 +198,73 @@
       toast(action === "approve" ? "已同意，该用户成为开发者" : "已拒绝该申请");
       await refreshAll();
     } catch (err) { toast(err.message); }
+  });
+
+  // ---- recharge orders ----
+  async function loadRecharges() {
+    const data = await api("/api/admin/recharges");
+    const list = data.recharges;
+    $("#statRecharge").textContent = list.length;
+    $("#rcCount").textContent = list.length + " 条";
+    const body = $("#rcBody");
+    const empty = $("#rcEmpty");
+    if (!list.length) { body.innerHTML = ""; empty.hidden = false; return list; }
+    empty.hidden = true;
+    body.innerHTML = list.map((r) => `<tr>
+      <td class="game-row-title"><b>${esc(r.username)}</b></td>
+      <td><span class="pill dev">¥${(r.amountCents / 100).toFixed(2)}</span></td>
+      <td class="desc-cell">${esc(r.note || "—")}</td>
+      <td class="ta-r link-cell">${fmtDate(r.createdAt)}</td>
+      <td class="ta-r"><div class="row-actions">
+        <button class="btn btn-primary btn-mini" data-rc="approve" data-id="${esc(r.id)}">确认到账</button>
+        <button class="btn btn-danger btn-mini" data-rc="reject" data-id="${esc(r.id)}">拒绝</button>
+      </div></td>
+    </tr>`).join("");
+    return list;
+  }
+  $("#rcBody").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-rc]");
+    if (!b) return;
+    const id = b.dataset.id;
+    const action = b.dataset.rc;
+    if (!confirm(action === "approve" ? "确认该笔充值已到账吗？" : "拒绝该笔充值申请吗？")) return;
+    try {
+      await api(`/api/admin/recharges/${id}/${action}`, { method: "POST", body: "{}" });
+      toast(action === "approve" ? "已确认到账" : "已拒绝");
+      await refreshAll();
+    } catch (err) { toast(err.message); }
+  });
+
+  // ---- site settings (price / QR) ----
+  let savedQr = "";
+  function renderQr() { $("#qrPreview img").src = savedQr || "/assets/img/card-default.jpg"; }
+  async function loadSettings() {
+    const data = await api("/api/admin/settings");
+    $("#priceInput").value = (data.pricePerGame || 0) / 100;
+    $("#minInput").value = (data.minRecharge || 100) / 100;
+    savedQr = data.rechargeQr || "";
+    renderQr();
+  }
+  $("#qrUrl").addEventListener("input", () => { const v = $("#qrUrl").value.trim(); if (v) { savedQr = v; renderQr(); } });
+  $("#qrFile").addEventListener("change", () => {
+    const f = $("#qrFile").files[0];
+    if (!f) return;
+    if (f.size > 8 * 1024 * 1024) { toast("图片不能超过 8MB"); return; }
+    const r = new FileReader();
+    r.onload = () => { savedQr = r.result; renderQr(); $("#qrUrl").value = ""; };
+    r.readAsDataURL(f);
+  });
+  $("#settingsForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const price = Math.round(parseFloat($("#priceInput").value || "0") * 100);
+    const min = Math.round(parseFloat($("#minInput").value || "1") * 100);
+    $("#settingsError").hidden = true;
+    const btn = $("#settingsBtn"); btn.disabled = true; btn.textContent = "保存中…";
+    try {
+      await api("/api/admin/settings", { method: "PUT", body: JSON.stringify({ pricePerGame: price, minRecharge: min, rechargeQr: savedQr }) });
+      toast("设置已保存");
+    } catch (err) { $("#settingsError").textContent = err.message; $("#settingsError").hidden = false; }
+    finally { btn.disabled = false; btn.textContent = "保存设置"; }
   });
 
   // ---------- editor ----------

@@ -5,3 +5,5 @@ data/db.json
 shot-*.png
 build/
 *.zip
+.env
+secrets.local.json
