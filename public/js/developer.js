@@ -96,23 +96,43 @@
     body.innerHTML = games.map((g) => {
       const cover = g.cover || DEFAULT_COVER;
       const type = g.type === "download" ? "需下载·电脑运行" : "网页游戏";
-      const status = g.status === "pending" ? '<span class="pill warn">待审核</span>' : '<span class="pill on">已上架</span>';
+      const st = g.status === "pending"
+        ? '<span class="pill warn">待审核</span>'
+        : g.status === "offline"
+          ? '<span class="pill off">已下线</span>'
+          : '<span class="pill on">已上线</span>';
+      let actions = `<button class="btn btn-ghost btn-mini" data-edit="${esc(g.id)}">编辑</button>`;
+      if (g.status === "approved") actions = `<button class="btn btn-ghost btn-mini" data-offline="${esc(g.id)}">下线</button>` + actions;
+      else if (g.status === "offline") actions = `<button class="btn btn-ghost btn-mini" data-online="${esc(g.id)}">上线</button>` + actions;
+      actions += `<button class="btn btn-danger btn-mini" data-del="${esc(g.id)}">删除</button>`;
       return `<tr data-id="${esc(g.id)}">
         <td><img class="cover-thumb" src="${esc(cover)}" onerror="this.src='${DEFAULT_COVER}'" alt=""></td>
         <td class="game-row-title"><b>${esc(g.title)}</b><span>${esc(g.link)}</span></td>
         <td><span class="pill dev">${type}</span></td>
-        <td>${status}</td>
-        <td class="ta-r"><div class="row-actions">
-          <button class="btn btn-ghost btn-mini" data-edit="${esc(g.id)}">编辑</button>
-          <button class="btn btn-danger btn-mini" data-del="${esc(g.id)}">删除</button>
-        </div></td>
+        <td>${st}</td>
+        <td class="ta-r"><div class="row-actions">${actions}</div></td>
       </tr>`;
     }).join("");
   }
 
   $("#myGames").addEventListener("click", async (e) => {
+    const off = e.target.closest("[data-offline]");
+    const on = e.target.closest("[data-online]");
     const edit = e.target.closest("[data-edit]");
     const del = e.target.closest("[data-del]");
+    if (off) {
+      const g = games.find((x) => x.id === off.dataset.offline);
+      if (!g) return;
+      if (!confirm(`确定将《${g.title}》下线？下线后不再展示，且需下线后才能删除。`)) return;
+      try { await api(`/api/developer/games/${g.id}/offline`, { method: "POST", body: "{}" }); toast("已下线"); loadMyGames(); }
+      catch (err) { toast(err.message); }
+    }
+    if (on) {
+      const g = games.find((x) => x.id === on.dataset.online);
+      if (!g) return;
+      try { await api(`/api/developer/games/${g.id}/online`, { method: "POST", body: "{}" }); toast("已上线"); loadMyGames(); }
+      catch (err) { toast(err.message); }
+    }
     if (edit) { const g = games.find((x) => x.id === edit.dataset.edit); if (g) openEditor(g); }
     if (del) {
       const g = games.find((x) => x.id === del.dataset.del);

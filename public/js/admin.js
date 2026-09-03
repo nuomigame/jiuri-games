@@ -114,7 +114,9 @@
         : '<span class="pill dev">网页游戏</span>';
       const statusPill = isPending
         ? '<span class="pill warn">待审核</span>'
-        : '<span class="pill on">已上架</span>';
+        : g.status === "offline"
+          ? '<span class="pill off">已下线</span>'
+          : '<span class="pill on">已上架</span>';
       const ownerPill = g.ownerName
         ? `<span class="pill dev">${esc(g.ownerName)}</span>`
         : '<span class="pill">官方</span>';
@@ -237,7 +239,9 @@
 
   // ---- site settings (price / QR) ----
   let savedQr = "";
+  let savedWx = "";
   function renderQr() { $("#qrPreview img").src = savedQr || "/assets/img/card-default.jpg"; }
+  function renderWx() { $("#wxPreview img").src = savedWx || "/assets/img/card-default.jpg"; }
   async function loadSettings() {
     const data = await api("/api/admin/settings");
     $("#priceInput").value = (data.pricePerGame || 0) / 100;
@@ -250,7 +254,9 @@
     $("#minChargeInput").value = (data.minChargeCents || 0) / 100;
     $("#maxChargeInput").value = (data.maxChargeCents || 0) / 100;
     savedQr = data.rechargeQr || "";
+    savedWx = data.wechatQr || "";
     renderQr();
+    renderWx();
   }
   $("#qrUrl").addEventListener("input", () => { const v = $("#qrUrl").value.trim(); if (v) { savedQr = v; renderQr(); } });
   $("#qrFile").addEventListener("change", () => {
@@ -259,6 +265,15 @@
     if (f.size > 8 * 1024 * 1024) { toast("图片不能超过 8MB"); return; }
     const r = new FileReader();
     r.onload = () => { savedQr = r.result; renderQr(); $("#qrUrl").value = ""; };
+    r.readAsDataURL(f);
+  });
+  $("#wxUrl").addEventListener("input", () => { const v = $("#wxUrl").value.trim(); if (v) { savedWx = v; renderWx(); } });
+  $("#wxFile").addEventListener("change", () => {
+    const f = $("#wxFile").files[0];
+    if (!f) return;
+    if (f.size > 8 * 1024 * 1024) { toast("图片不能超过 8MB"); return; }
+    const r = new FileReader();
+    r.onload = () => { savedWx = r.result; renderWx(); $("#wxUrl").value = ""; };
     r.readAsDataURL(f);
   });
   $("#settingsForm").addEventListener("submit", async (e) => {
@@ -274,6 +289,7 @@
           pricePerGame: price,
           minRecharge: min,
           rechargeQr: savedQr,
+          wechatQr: savedWx,
           aiApiKey: $("#aiKeyInput").value.trim(),
           aiBaseUrl: $("#aiBaseInput").value.trim(),
           aiModel: $("#aiModelInput").value.trim(),

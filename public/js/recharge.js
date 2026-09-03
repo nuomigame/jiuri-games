@@ -2,6 +2,7 @@
 (() => {
   "use strict";
   const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => [...el.querySelectorAll(s)];
   async function api(path, opts = {}) {
     const res = await fetch(path, { headers: { "Content-Type": "application/json" }, credentials: "same-origin", ...opts });
     const data = await res.json().catch(() => ({}));
@@ -11,6 +12,20 @@
   function toast(msg) { const el = $("#toast"); el.textContent = msg; el.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 2800); }
   const f = (c) => ((Number(c) || 0) / 100).toFixed(2);
   const navAuthBtn = $("#navAuthBtn");
+  let payMode = "alipay", alipayQr = "", wechatQr = "";
+  function renderQr() {
+    const q = payMode === "wechat" ? wechatQr : alipayQr;
+    $("#qrWrap").innerHTML = q
+      ? `<img class="rc-qr" src="${q}" alt="收款码" />`
+      : '<div class="rc-qr-empty">站长还没有上传' + (payMode === "wechat" ? "微信" : "支付宝") + '收款码<br/>请稍后再来，或直接联系站长充值。</div>';
+  }
+  $("#payTabs").addEventListener("click", (e) => {
+    const b = e.target.closest(".pay-tab");
+    if (!b) return;
+    payMode = b.dataset.pay;
+    $$("#payTabs .pay-tab").forEach((x) => x.classList.toggle("is-active", x === b));
+    renderQr();
+  });
 
   async function load() {
     const me = await api("/api/me");
@@ -19,9 +34,9 @@
     const cfg = await api("/api/config");
     const d = cfg.data;
     $("#minHint").textContent = "最低充值：¥" + f(d.minRecharge) + " · 每次 AI 生成扣除 ¥" + f(d.pricePerGame);
-    $("#qrWrap").innerHTML = d.rechargeQr
-      ? `<img class="rc-qr" src="${d.rechargeQr}" alt="收款码" />`
-      : '<div class="rc-qr-empty">站长还没有上传收款码<br/>请稍后再来，或直接联系站长充值。</div>';
+    alipayQr = d.rechargeQr || "";
+    wechatQr = d.wechatQr || "";
+    renderQr();
     await loadBalance();
   }
   async function loadBalance() {

@@ -18,6 +18,9 @@
     .rc-balance small { font-size: 16px; color: var(--muted); font-weight: 400; margin-right: 6px; }
     .rc-qr { width: 220px; height: 220px; margin: 8px auto 0; display: block; border-radius: 12px; background: #fff; object-fit: contain; padding: 6px; }
     .rc-qr-empty { text-align: center; color: var(--muted); padding: 60px 0; border: 1px dashed var(--line); border-radius: 12px; margin-top: 12px; }
+    .pay-tabs { display: flex; gap: 8px; margin: 6px 0 16px; }
+    .pay-tab { flex: 1; height: 40px; border-radius: 999px; background: rgba(255,255,255,0.04); border: 1px solid var(--line); color: var(--txt-2); font-size: 14px; cursor: pointer; transition: background .2s, color .2s, border-color .2s; }
+    .pay-tab.is-active { background: var(--accent); color: #0a0a0c; border-color: var(--accent); }
     .rc-amount { display: flex; align-items: center; gap: 12px; margin: 16px 0; }
     .rc-amount .cur { font-size: 22px; color: var(--accent); font-family: var(--font-mono); }
     .rc-amount input { flex: 1; background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 12px; padding: 13px 16px; color: var(--txt); font-size: 22px; font-family: var(--font-mono); }
@@ -52,6 +55,10 @@
 
       <section class="rc-card">
         <h2 class="card-h">扫码支付</h2>
+        <div class="pay-tabs" id="payTabs">
+          <button type="button" class="pay-tab is-active" data-pay="alipay">支付宝</button>
+          <button type="button" class="pay-tab" data-pay="wechat">微信</button>
+        </div>
         <div id="qrWrap"></div>
         <p class="cover-hint" style="margin-top:12px">用微信/支付宝扫描上方二维码，向站长转账相应金额，然后把下面的金额填成你实际支付的数。</p>
         <div class="rc-amount">
@@ -72,6 +79,6 @@
   </main>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="/js/recharge.js?v=1"></script>
+  <script src="/js/recharge.js?v=2"></script>
 </body>
 </html>

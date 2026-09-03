@@ -67,6 +67,7 @@ function loadDb() {
   if (!db.settings || typeof db.settings !== "object") db.settings = {};
   if (typeof db.settings.pricePerGame !== "number") db.settings.pricePerGame = 500; // 分，默认 5 元/次
   if (!db.settings.rechargeQr) db.settings.rechargeQr = "";
+  if (!db.settings.wechatQr) db.settings.wechatQr = "";
   if (!db.settings.minRecharge) db.settings.minRecharge = 100; // 分，默认 1 元
   if (typeof db.settings.aiApiKey !== "string") db.settings.aiApiKey = process.env.AI_API_KEY || "";
   if (typeof db.settings.aiBaseUrl !== "string") db.settings.aiBaseUrl = process.env.AI_BASE_URL || "";
@@ -418,6 +419,7 @@ const server = http.createServer(async (req, res) => {
         pricePerGame: db.settings.pricePerGame || 0,
         minRecharge: db.settings.minRecharge || 100,
         rechargeQr: db.settings.rechargeQr || "",
+        wechatQr: db.settings.wechatQr || "",
         costPerMillionTokens: db.settings.costPerMillionTokens || 0,
         margin: db.settings.margin || 1,
         minChargeCents: db.settings.minChargeCents || 0,
@@ -497,7 +499,7 @@ const server = http.createServer(async (req, res) => {
       const user = db.users.find((u) => u.username.toLowerCase() === uname.toLowerCase());
       if (!user) return json(res, 404, { error: "用户不存在" });
       const games = db.games
-        .filter((g) => g.ownerId === user.id)
+        .filter((g) => g.ownerId === user.id && g.status !== "offline")
         .sort((a, b) => {
           const ra = a.status === "pending" ? 0 : 1, rb = b.status === "pending" ? 0 : 1;
           if (ra !== rb) return ra - rb;
@@ -517,7 +519,7 @@ const server = http.createServer(async (req, res) => {
       const likedSet = new Set(Array.isArray(cur && cur.liked) ? cur.liked : []);
       const byUser = new Map(db.users.map((u) => [u.id, u]));
       const rank = (g) => (g.status === "pending" ? 0 : 1);
-      const games = [...db.games].sort((a, b) => {
+      const games = db.games.filter((g) => g.status !== "offline").sort((a, b) => {
         const ra = rank(a), rb = rank(b);
         if (ra !== rb) return ra - rb;                          // 待审核优先展示
         if (ra === 0) return (b.createdAt || 0) - (a.createdAt || 0); // 待审核按最新在前
@@ -627,7 +629,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { game: publicGame(db.games[idx]) });
     }
 
-    // ---- Developer: delete own game ----
+    // ---- Developer: delete own game ---- 
     if (method === "DELETE" && pathname.startsWith("/api/developer/games/")) {
       const user = currentUser(req);
       if (!user || user.role !== "developer") return json(res, 403, { error: "需要开发者权限" });
@@ -635,6 +637,9 @@ const server = http.createServer(async (req, res) => {
       const idx = db.games.findIndex((g) => g.id === id);
       if (idx === -1) return json(res, 404, { error: "游戏不存在" });
       if (db.games[idx].ownerId !== user.id) return json(res, 403, { error: "只能删除自己发布的游戏" });
+      if (db.games[idx].status === "approved") {
+        return json(res, 400, { error: "该游戏已上线，请先「下线」再删除" });
+      }
       const [g] = db.games.splice(idx, 1);
       removeUploadedCover(g.cover);
       db.users.forEach((u) => {
@@ -645,6 +650,20 @@ const server = http.createServer(async (req, res) => {
       });
       saveDb();
       return json(res, 200, { ok: true });
+    }
+
+    // ---- Developer: 下线 / 上线自己的游戏 ----
+    if (method === "POST" && pathname.startsWith("/api/developer/games/") && (pathname.endsWith("/offline") || pathname.endsWith("/online"))) {
+      const user = currentUser(req);
+      if (!user || user.role !== "developer") return json(res, 403, { error: "需要开发者权限" });
+      const id = decodeURIComponent(pathname.split("/")[4] || "");
+      const idx = db.games.findIndex((g) => g.id === id);
+      if (idx === -1) return json(res, 404, { error: "游戏不存在" });
+      if (db.games[idx].ownerId !== user.id) return json(res, 403, { error: "只能操作自己发布的游戏" });
+      db.games[idx].status = pathname.endsWith("/offline") ? "offline" : "approved";
+      db.games[idx].updatedAt = Date.now();
+      saveDb();
+      return json(res, 200, { ok: true, game: publicGame(db.games[idx]) });
     }
 
     // ---- AI 工坊：生成一个游戏（需登录，扣费） ----
@@ -836,6 +855,7 @@ const server = http.createServer(async (req, res) => {
       const list = db.recharges.filter((r) => r.userId === user.id).sort((a, b) => b.createdAt - a.createdAt);
       return json(res, 200, {
         qr: db.settings.rechargeQr || "",
+        wechatQr: db.settings.wechatQr || "",
         pricePerGame: db.settings.pricePerGame || 0,
         minRecharge: db.settings.minRecharge || 100,
         balance: user.balance || 0,
@@ -969,6 +989,7 @@ const server = http.createServer(async (req, res) => {
           pricePerGame: db.settings.pricePerGame || 0,
           minRecharge: db.settings.minRecharge || 100,
           rechargeQr: db.settings.rechargeQr || "",
+          wechatQr: db.settings.wechatQr || "",
           aiApiKey: db.settings.aiApiKey || "",
           aiBaseUrl: db.settings.aiBaseUrl || "",
           aiModel: db.settings.aiModel || "",
@@ -989,6 +1010,7 @@ const server = http.createServer(async (req, res) => {
           db.settings.minRecharge = v;
         }
         if (body.rechargeQr !== undefined) db.settings.rechargeQr = sanitizeText(body.rechargeQr, 400);
+        if (body.wechatQr !== undefined) db.settings.wechatQr = sanitizeText(body.wechatQr, 400);
         if (body.aiApiKey !== undefined) {
           db.settings.aiApiKey = sanitizeText(body.aiApiKey, 300);
           process.env.AI_API_KEY = db.settings.aiApiKey;
@@ -1022,6 +1044,7 @@ const server = http.createServer(async (req, res) => {
           pricePerGame: db.settings.pricePerGame,
           minRecharge: db.settings.minRecharge,
           rechargeQr: db.settings.rechargeQr,
+          wechatQr: db.settings.wechatQr,
           aiApiKey: db.settings.aiApiKey,
           aiBaseUrl: db.settings.aiBaseUrl,
           aiModel: db.settings.aiModel,

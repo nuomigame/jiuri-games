@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/admin.css?v=8" />
+  <link rel="stylesheet" href="/css/admin.css?v=9" />
 </head>
 <body>
   <!-- Gate -->
@@ -136,13 +136,24 @@
             <label class="field"><span class="field-label">单次最高收费（元）</span><input type="number" name="maxChargeCents" id="maxChargeInput" min="0" step="1" /></label>
           </div>
           <div class="cover-block">
-            <span class="field-label">你的收款码（玩家扫码支付，你确认后到账）</span>
+            <span class="field-label">支付宝收款码（玩家扫码支付，你确认后到账）</span>
             <div class="cover-row">
               <div class="cover-preview" id="qrPreview"><img src="" alt="" /></div>
               <div class="cover-controls">
-                <label class="upload-btn"><input type="file" id="qrFile" accept="image/*" hidden />上传收款码</label>
+                <label class="upload-btn"><input type="file" id="qrFile" accept="image/*" hidden />上传支付宝收款码</label>
                 <p class="cover-hint">支持 JPG / PNG / WebP，小于 8MB。也可粘贴图片链接：</p>
-                <input type="text" id="qrUrl" placeholder="https://... 收款码链接" />
+                <input type="text" id="qrUrl" placeholder="https://... 支付宝收款码链接" />
+              </div>
+            </div>
+          </div>
+          <div class="cover-block">
+            <span class="field-label">微信收款码（玩家扫码支付，你确认后到账）</span>
+            <div class="cover-row">
+              <div class="cover-preview" id="wxPreview"><img src="" alt="" /></div>
+              <div class="cover-controls">
+                <label class="upload-btn"><input type="file" id="wxFile" accept="image/*" hidden />上传微信收款码</label>
+                <p class="cover-hint">支持 JPG / PNG / WebP，小于 8MB。也可粘贴图片链接：</p>
+                <input type="text" id="wxUrl" placeholder="https://... 微信收款码链接" />
               </div>
             </div>
           </div>
@@ -250,6 +261,6 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="/js/admin.js?v=8"></script>
+  <script src="/js/admin.js?v=9"></script>
 </body>
 </html>
