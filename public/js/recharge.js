@@ -12,6 +12,14 @@
   function toast(msg) { const el = $("#toast"); el.textContent = msg; el.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 2800); }
   const f = (c) => ((Number(c) || 0) / 100).toFixed(2);
   const navAuthBtn = $("#navAuthBtn");
+  const qrModal = $("#qrModal");
+  function openQr(src) { if (!src || !qrModal) return; $("#qrBig").src = src; qrModal.hidden = false; document.body.style.overflow = "hidden"; }
+  function closeQr() { if (!qrModal) return; qrModal.hidden = true; document.body.style.overflow = ""; }
+  $("#qrWrap").addEventListener("click", (e) => { const im = e.target.closest(".rc-qr"); if (im) openQr(im.src); });
+  if (qrModal) {
+    $$("[data-close-qr]").forEach((el) => el.addEventListener("click", closeQr));
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeQr(); });
+  }
   let payMode = "alipay", alipayQr = "", wechatQr = "";
   function renderQr() {
     const q = payMode === "wechat" ? wechatQr : alipayQr;

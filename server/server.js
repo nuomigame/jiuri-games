@@ -734,7 +734,12 @@ const server = http.createServer(async (req, res) => {
         charge = Math.min(charge, user.balance || 0); // 不扣成负数
       }
       if (charge > 0) user.balance -= charge;
-      if (!id) id = uid();
+      if (!id) {
+        // 同名项目已存在则更新那一个，避免攒出一堆相同历史
+        const t = generation.title || title || "AI 小游戏";
+        const existing = Object.values(db.aiGames).find((g) => g.ownerId === user.id && g.title === t);
+        id = existing ? existing.id : uid();
+      }
       const dir = path.join(DATA_DIR, "studio");
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(path.join(dir, id + ".html"), generation.html, "utf8");
@@ -783,7 +788,7 @@ const server = http.createServer(async (req, res) => {
       if (!user || (user.role !== "developer" && user.role !== "admin")) {
         return json(res, 403, { error: "只有开发者才能删除" });
       }
-      const id = decodeURIComponent(pathname.split("/")[3] || "");
+      const id = decodeURIComponent(pathname.split("/")[4] || "");
       const meta = db.aiGames[id];
       if (!meta || meta.ownerId !== user.id) return json(res, 404, { error: "未找到该项目，或无权删除" });
       delete db.aiGames[id];
