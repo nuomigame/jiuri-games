@@ -802,6 +802,10 @@ const server = http.createServer(async (req, res) => {
         if (meta.ownerId !== user.id) return json(res, 403, { error: "只能修改自己的项目" });
         const f = path.join(DATA_DIR, "studio", sourceId + ".html");
         if (fs.existsSync(f)) sourceHtml = fs.readFileSync(f, "utf8");
+        const versions = Array.isArray(meta.versions) ? meta.versions : [];
+        if (versions.length >= 5) {
+          return json(res, 409, { error: "该项目的生成备份已达上限（5 个），请先删除一个备份再继续生成", needDeleteBackup: true });
+        }
       }
       // 每次修改都记录进历史，并让 AI 结合全部累积要求，避免推倒重来
       let history = [prompt];
@@ -840,7 +844,13 @@ const server = http.createServer(async (req, res) => {
       const dir = path.join(DATA_DIR, "studio");
       fs.mkdirSync(dir, { recursive: true });
       const gf = path.join(dir, id + ".html");
-      if (fs.existsSync(gf)) fs.copyFileSync(gf, path.join(dir, id + ".bak.html"));
+      if (fs.existsSync(gf)) {
+        const vfile = id + "-v" + Date.now() + ".html";
+        fs.copyFileSync(gf, path.join(dir, vfile));
+        const versions = db.aiGames[id].versions = Array.isArray(db.aiGames[id].versions) ? db.aiGames[id].versions : [];
+        versions.push({ file: vfile, at: Date.now() });
+        if (versions.length > 5) db.aiGames[id].versions = versions.slice(-5);
+      }
       fs.writeFileSync(gf, generation.html, "utf8");
       db.aiGames[id] = {
         id,
@@ -931,6 +941,38 @@ const server = http.createServer(async (req, res) => {
       const bak = path.join(DATA_DIR, "studio", id + ".bak.html");
       if (!fs.existsSync(bak)) return json(res, 404, { error: "没有可恢复的上一版" });
       fs.copyFileSync(bak, path.join(DATA_DIR, "studio", id + ".html"));
+      return json(res, 200, { ok: true });
+    }
+
+    // ---- 生成备份记录：列出 / 恢复 / 删除 ----
+    if (method === "GET" && pathname.startsWith("/api/studio/project/") && pathname.endsWith("/versions")) {
+      const user = currentUser(req);
+      if (!user || (user.role !== "developer" && user.role !== "admin")) return json(res, 403, { error: "只有开发者才能操作" });
+      const id = decodeURIComponent(pathname.split("/")[4] || "");
+      const meta = db.aiGames[id];
+      if (!meta || meta.ownerId !== user.id) return json(res, 404, { error: "未找到该项目，或无权操作" });
+      return json(res, 200, { versions: (meta.versions || []).map((v) => ({ file: v.file, at: v.at })) });
+    }
+    const vAct = pathname.match(/^\/api\/studio\/project\/([^/]+)\/versions\/(restore|delete)$/);
+    if (method === "POST" && vAct) {
+      const user = currentUser(req);
+      if (!user || (user.role !== "developer" && user.role !== "admin")) return json(res, 403, { error: "只有开发者才能操作" });
+      const id = decodeURIComponent(vAct[1]);
+      const action = vAct[2];
+      const meta = db.aiGames[id];
+      if (!meta || meta.ownerId !== user.id) return json(res, 404, { error: "未找到该项目，或无权操作" });
+      const body = await parseJson(req);
+      const file = sanitizeText(body.file, 80);
+      const idx = (meta.versions || []).findIndex((v) => v.file === file);
+      if (idx === -1) return json(res, 404, { error: "备份不存在" });
+      const vf = path.join(DATA_DIR, "studio", file);
+      if (action === "restore") {
+        if (fs.existsSync(vf)) fs.copyFileSync(vf, path.join(DATA_DIR, "studio", id + ".html"));
+        return json(res, 200, { ok: true });
+      }
+      meta.versions.splice(idx, 1);
+      try { fs.unlinkSync(vf); } catch (e) {}
+      saveDb();
       return json(res, 200, { ok: true });
     }
 

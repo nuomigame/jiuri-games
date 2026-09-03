@@ -17,7 +17,7 @@
 .studio-gate-title span { color: var(--accent); }
 .studio-gate-sub { color: var(--muted); margin: 14px 0 22px; line-height: 1.7; }
 .studio-gate-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-.studio-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 26px; align-items: start; }
+.studio-grid { display: grid; grid-template-columns: 1fr 1.1fr 0.9fr; gap: 26px; align-items: start; }
 .studio-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; }
 .card-h { font-size: 18px; font-weight: 800; margin-bottom: 18px; }
 .studio-card .field { margin-bottom: 16px; }
@@ -37,6 +37,9 @@
 .proj-clear:hover { background: rgba(240,90,90,0.22); }
 .proj-undo { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; background: rgba(75,193,240,0.12); color: #7cc4ff; border: 1px solid rgba(75,193,240,0.4); font-size: 13px; cursor: pointer; }
 .proj-undo:hover { background: rgba(75,193,240,0.22); }
+.proj-back { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line-soft); font-size: 12px; color: var(--txt-2); }
+.proj-back button { margin-left: 8px; }
+.proj-back .proj-undo.sm { padding: 4px 10px; font-size: 12px; }
 .shot-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .shot { position: relative; width: 64px; height: 64px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--bg-3); display: inline-block; }
 .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -48,5 +51,8 @@
 .preview-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .studio-frame { aspect-ratio: 16 / 10; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #000; margin-bottom: 16px; }
 .studio-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+.studio-model { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 10px; margin-bottom: 8px; font-size: 13px; }
+.studio-model span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--txt-2); }
+.studio-model .proj-undo.sm { padding: 5px 10px; font-size: 12px; }
 
 @media (max-width: 860px) { .studio-grid { grid-template-columns: 1fr; } .studio-links { display: none; } }

@@ -121,6 +121,8 @@ img { display: block; max-width: 100%; }
 .captcha-row { display: flex; align-items: center; gap: 10px; }
 .captcha-row input { flex: 1; }
 .captcha-img { width: 120px; height: 44px; border-radius: 8px; border: 1px solid var(--line); cursor: pointer; background: #131318; flex: 0 0 120px; }
+.mm-anim { background: rgba(255,255,255,0.05); border: 1px solid var(--line); color: var(--txt-2); border-radius: 8px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+.mm-anim:hover, .mm-anim.is-on { border-color: var(--accent-line); color: var(--accent); }
 .shot-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .shot { position: relative; width: 72px; height: 72px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--bg-3); display: inline-block; }
 .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }

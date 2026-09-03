@@ -5,6 +5,7 @@
   const modal = $("#modelModal");
   if (!modal) return;
   let renderer, scene, camera, mixer, clock, raf, container;
+  let dragging = false, actions = {}, animBar;
   let camTheta = 0, camPhi = 1.05, camRadius = 4, camY = 1;
   function updateCam() {
     if (!camera) return;
@@ -33,14 +34,17 @@
     container.appendChild(renderer.domElement);
     const el = renderer.domElement;
     let px = 0, py = 0;
-    el.addEventListener("pointerdown", (e) => { px = e.clientX; py = e.clientY; el.setPointerCapture(e.pointerId); });
+    el.addEventListener("pointerdown", (e) => { dragging = true; px = e.clientX; py = e.clientY; el.setPointerCapture(e.pointerId); });
     el.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
       const dx = e.clientX - px, dy = e.clientY - py;
       px = e.clientX; py = e.clientY;
       camTheta -= dx * 0.005;
       camPhi = Math.max(0.15, Math.min(Math.PI - 0.15, camPhi - dy * 0.005));
       updateCam();
     });
+    el.addEventListener("pointerup", () => { dragging = false; });
+    el.addEventListener("pointercancel", () => { dragging = false; });
     el.addEventListener("wheel", (e) => { e.preventDefault(); camRadius = Math.max(1.5, Math.min(40, camRadius * (e.deltaY > 0 ? 1.12 : 0.9))); updateCam(); }, { passive: false });
     scene = new THREE.Scene(); scene.background = new THREE.Color(0x0e0e12);
     camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000); camera.position.set(0, 1.8, 4); camera.lookAt(0, 1, 0);
@@ -58,10 +62,13 @@
       camY = size.y / 2;
       camRadius = Math.max(size.x, size.y, size.z) * 2.4 + 1;
       updateCam();
+      actions = {};
       if (gltf.animations && gltf.animations.length) {
         mixer = new THREE.AnimationMixer(obj);
-        const action = mixer.clipAction(gltf.animations[0]);
-        action.play();
+        gltf.animations.forEach((clip, i) => { actions[clip.name || ("动画" + (i + 1))] = mixer.clipAction(clip); });
+        const first = Object.keys(actions)[0];
+        if (first) actions[first].play();
+        renderAnims();
       }
       clock = new THREE.Clock();
       animate();
@@ -76,10 +83,27 @@
   function stopViewer() {
     if (raf) cancelAnimationFrame(raf); raf = null;
     if (renderer) { renderer.dispose(); }
-    mixer = null; renderer = null; scene = null; camera = null; clock = null;
+    mixer = null; renderer = null; scene = null; camera = null; clock = null; actions = {};
+    if (animBar) animBar.innerHTML = "";
   }
+  function renderAnims() {
+    if (!animBar) return;
+    const names = Object.keys(actions);
+    animBar.innerHTML = "动画：" + names.map((n) => `<button type="button" class="mm-anim" data-anim="${esc(n)}">${esc(n)}</button>`).join("");
+    animBar.querySelectorAll("[data-anim]").forEach((b) => b.addEventListener("click", () => {
+      Object.values(actions).forEach((a) => a.stop());
+      const a = actions[b.dataset.anim];
+      if (a) { a.reset(); a.play(); }
+    }));
+  }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
   function close() { modal.hidden = true; document.body.style.overflow = ""; stopViewer(); }
-  window.openModelViewer = (url, name) => { $("#mmTitle").textContent = name || "模型"; modal.hidden = false; document.body.style.overflow = "hidden"; startViewer(url); };
+  window.openModelViewer = (url, name) => {
+    $("#mmTitle").textContent = name || "模型";
+    modal.hidden = false; document.body.style.overflow = "hidden";
+    if (!animBar) { animBar = document.createElement("div"); animBar.id = "mmAnims"; animBar.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center"; (modal.querySelector(".modal-panel") || modal).appendChild(animBar); }
+    startViewer(url);
+  };
   modal.addEventListener("click", (e) => { if (e.target.closest("[data-close-model]")) close(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !modal.hidden) close(); });
 })();

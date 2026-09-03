@@ -40,12 +40,27 @@
       $("#genBtn").disabled = false;
       $("#genBtn").textContent = "生成游戏";
       loadProjects();
+      loadStudioModels();
     } else {
       $("#balanceBtn").hidden = true;
       $("#rechargeLink").hidden = true;
       $("#genBtn").disabled = true;
     }
     $("#balHint").textContent = "余额：" + f(balance);
+  }
+
+  async function loadStudioModels() {
+    try {
+      const r = await api("/api/models");
+      const list = r.data.models || [];
+      const box = $("#studioModelsList");
+      if (!list.length) { box.innerHTML = "<div style='color:var(--muted);font-size:13px'>暂无模型，可到后台/开发者中心上传。</div>"; return; }
+      box.innerHTML = list.map((m) => `<div class="studio-model"><span title="${escapeHtml(m.name)}">${escapeHtml(m.name)}</span><button type="button" class="proj-undo sm" data-viewmodel="${escapeHtml(m.id)}">查看</button></div>`).join("");
+      box.querySelectorAll("[data-viewmodel]").forEach((b) => b.addEventListener("click", () => {
+        const m = list.find((x) => x.id === b.dataset.viewmodel);
+        if (m && window.openModelViewer) window.openModelViewer(m.url, m.name);
+      }));
+    } catch (e) {}
   }
 
   async function loadProjects() {
@@ -80,8 +95,27 @@
     const his = (p.history && p.history.length ? p.history : [p.prompt]).filter((h) => h && h.trim());
     $("#projHistory").innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b>修改记录（供你查看，不会重复生成）：</b><button type="button" class="proj-clear" id="clearHistoryBtn">清理记录</button></div>' + his.map((h, i) => `<div>${i + 1}. ${escapeHtml(h)}</div>`).join("");
     $("#projHistory").hidden = false;
+    loadBackups(id);
     toast("已选择项目，填写要修改的地方后点「修改游戏」");
   });
+  async function loadBackups(id) {
+    try {
+      const r = await api("/api/studio/project/" + id + "/versions");
+      const list = r.data.versions || [];
+      const box = $("#projBackups");
+      if (!list.length) { box.innerHTML = ""; box.hidden = true; return; }
+      box.innerHTML = '<b>备份记录（最多 5 个）：</b>' + list.map((v) => '<div class="proj-back">' + new Date(v.at).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) + '<button type="button" class="proj-undo sm" data-restore="' + escapeHtml(v.file) + '">恢复</button><button type="button" class="proj-clear" data-delback="' + escapeHtml(v.file) + '">删除</button></div>').join("");
+      box.hidden = false;
+      box.querySelectorAll("[data-restore]").forEach((b) => b.addEventListener("click", async () => {
+        if (!confirm("确定恢复到该备份？当前版本会被覆盖为这一天。")) return;
+        try { await api("/api/studio/project/" + id + "/versions/restore", { method: "POST", body: JSON.stringify({ file: b.dataset.restore }) }); toast("已恢复该备份"); $("#frameWrap").innerHTML = `<iframe src="/play/${id}" loading="lazy" allow="fullscreen; autoplay"></iframe>`; loadBackups(id); } catch (err) { toast(err.message); }
+      }));
+      box.querySelectorAll("[data-delback]").forEach((b) => b.addEventListener("click", async () => {
+        if (!confirm("确定删除这个备份？")) return;
+        try { await api("/api/studio/project/" + id + "/versions/delete", { method: "POST", body: JSON.stringify({ file: b.dataset.delback }) }); toast("已删除备份"); loadBackups(id); } catch (err) { toast(err.message); }
+      }));
+    } catch (e) {}
+  }
   $("#deleteProjectBtn").addEventListener("click", async () => {
     if (!currentSourceId) { toast("请先在「我的项目」里选一个要删除的项目"); return; }
     const p = projects.find((x) => x.id === currentSourceId);
@@ -163,6 +197,7 @@
     } else if (!r.ok) {
       $("#genError").textContent = (r.data && r.data.error) || "生成失败";
       $("#genError").hidden = false;
+      if (/备份/.test((r.data && r.data.error) || "") && currentSourceId) loadBackups(currentSourceId);
     } else {
       const d = r.data;
       currentId = d.id;
@@ -196,6 +231,7 @@
         $("#projHistory").innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b>修改记录（供你查看，不会重复生成）：</b><button type="button" class="proj-clear" id="clearHistoryBtn">清理记录</button></div>' + his.map((h, i) => `<div>${i + 1}. ${escapeHtml(h)}</div>`).join("");
         $("#projHistory").hidden = false;
         $("#projectTools").hidden = false;
+        loadBackups(d.id);
       }
     }
     genBtn.disabled = false;
