@@ -63,6 +63,8 @@
       $("#genBtn").textContent = "生成游戏";
       $("#projectTools").hidden = true;
       $("#projHistory").hidden = true;
+      $("#projHistory").innerHTML = "";
+      $("#titleInput").value = "";
       $("#promptInput").value = "";
       $("#promptInput").placeholder = "例如：做一个像素风贪吃蛇游戏，绿色主题，速度越来越快，吃金币得分";
       return;
