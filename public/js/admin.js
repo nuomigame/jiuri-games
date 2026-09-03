@@ -91,7 +91,7 @@
 
   // ---------- rendering ----------
   async function refreshAll() {
-    const [g] = await Promise.all([loadGames(), loadUsers(), loadApplications(), loadRecharges()]);
+    const [g] = await Promise.all([loadGames(), loadUsers(), loadApplications(), loadRecharges(), loadFeedback()]);
     $("#statFeatured").textContent = g.filter((x) => x.featured).length;
     $("#gameCountReal").textContent = g.length + " 款";
   }
@@ -233,6 +233,46 @@
     try {
       await api(`/api/admin/recharges/${id}/${action}`, { method: "POST", body: "{}" });
       toast(action === "approve" ? "已确认到账" : "已拒绝");
+      await refreshAll();
+    } catch (err) { toast(err.message); }
+  });
+
+  // ---- feedback ----
+  async function loadFeedback() {
+    const data = await api("/api/admin/feedback");
+    const list = data.feedbacks;
+    $("#statFeedback").textContent = data.pending || 0;
+    $("#fbCount").textContent = list.length + " 条";
+    const body = $("#fbBody");
+    const empty = $("#fbEmpty");
+    if (!list.length) { body.innerHTML = ""; empty.hidden = false; return list; }
+    empty.hidden = true;
+    body.innerHTML = list.map((f) => {
+      const tPill = f.type === "问题" ? '<span class="pill warn">问题</span>' : f.type === "建议" ? '<span class="pill dev">建议</span>' : '<span class="pill off">其他</span>';
+      const sPill = f.status === "done" ? '<span class="pill on">已处理</span>' : '<span class="pill warn">未处理</span>';
+      return `<tr>
+        <td class="game-row-title"><b>${esc(f.username)}</b></td>
+        <td>${tPill}</td>
+        <td class="desc-cell">${esc(f.content)}</td>
+        <td class="ta-r link-cell">${fmtDate(f.createdAt)}</td>
+        <td>${sPill}</td>
+        <td class="ta-r"><div class="row-actions">
+          <button class="btn btn-ghost btn-mini" data-fb="resolve" data-id="${esc(f.id)}">标记已处理</button>
+          <button class="btn btn-danger btn-mini" data-fb="delete" data-id="${esc(f.id)}">删除</button>
+        </div></td>
+      </tr>`;
+    }).join("");
+    return list;
+  }
+  $("#fbBody").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-fb]");
+    if (!b) return;
+    const id = b.dataset.id;
+    const action = b.dataset.fb;
+    if (action === "delete" && !confirm("确定删除这条反馈？")) return;
+    try {
+      await api(`/api/admin/feedback/${id}/${action}`, { method: "POST", body: "{}" });
+      toast(action === "resolve" ? "已标记为已处理" : "已删除");
       await refreshAll();
     } catch (err) { toast(err.message); }
   });

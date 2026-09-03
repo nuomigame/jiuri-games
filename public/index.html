@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css?v=4" />
+  <link rel="stylesheet" href="/css/style.css?v=5" />
 </head>
 <body>
   <div class="site-grain" aria-hidden="true"></div>
@@ -261,9 +261,26 @@
     </div>
   </div>
 
+  <!-- ============ FEEDBACK ============ -->
+  <button class="feedback-fab" data-open-feedback aria-label="反馈">反馈</button>
+  <div class="modal" id="feedbackModal" hidden>
+    <div class="modal-backdrop" data-close-feedback></div>
+    <div class="modal-panel">
+      <button class="modal-close" data-close-feedback aria-label="关闭">×</button>
+      <p class="kicker">反馈</p>
+      <h2 class="modal-title">问题 / 建议 / 反馈</h2>
+      <form class="auth-form">
+        <label class="field"><span class="field-label">类型</span><select name="type"><option>问题</option><option>建议</option><option>其他</option></select></label>
+        <label class="field"><span class="field-label">内容</span><textarea name="content" rows="4" maxlength="1000" placeholder="遇到什么问题？或者有什么建议？"></textarea></label>
+        <button type="submit" class="btn btn-primary btn-block">提交反馈</button>
+      </form>
+    </div>
+  </div>
+
   <div class="toast" id="toast" hidden></div>
 
   <script src="/js/game-modal.js?v=3"></script>
+  <script src="/js/feedback.js?v=1"></script>
   <script src="/js/app.js?v=9"></script>
 </body>
 </html>

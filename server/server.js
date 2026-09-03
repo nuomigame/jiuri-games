@@ -64,6 +64,7 @@ function loadDb() {
   db.users = (db.users || []).map((u) => Object.assign({ liked: [], avatar: "", bio: "", balance: 0 }, u));
   if (!db.aiGames || typeof db.aiGames !== "object") db.aiGames = {};
   if (!Array.isArray(db.recharges)) db.recharges = [];
+  if (!Array.isArray(db.feedbacks)) db.feedbacks = [];
   if (!db.settings || typeof db.settings !== "object") db.settings = {};
   if (typeof db.settings.pricePerGame !== "number") db.settings.pricePerGame = 500; // 分，默认 5 元/次
   if (!db.settings.rechargeQr) db.settings.rechargeQr = "";
@@ -235,6 +236,16 @@ async function parseJson(req) {
 
 function sanitizeText(value, max = 300) {
   return String(value == null ? "" : value).replace(/[<>]/g, "").slice(0, max).trim();
+}
+
+// 收款码保存：允许 base64 图片或 http 链接，不做短截断（避免图片被截成半截）
+function cleanImageValue(v) {
+  const s = String(v == null ? "" : v).trim();
+  if (!s) return "";
+  if (/^data:image\/(png|jpe?g|webp|gif|svg\+xml);base64,/i.test(s) || /^(https?:)?\/\//i.test(s)) {
+    return s.slice(0, 2 * 1024 * 1024);
+  }
+  return "";
 }
 
 function normalizeCover(cover) {
@@ -766,6 +777,28 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { projects: list });
     }
 
+    // ---- 删除生成的项目（开发者/管理员，仅本人），连带删除已发布的那份 ----
+    if (method === "DELETE" && pathname.startsWith("/api/studio/project/")) {
+      const user = currentUser(req);
+      if (!user || (user.role !== "developer" && user.role !== "admin")) {
+        return json(res, 403, { error: "只有开发者才能删除" });
+      }
+      const id = decodeURIComponent(pathname.split("/")[3] || "");
+      const meta = db.aiGames[id];
+      if (!meta || meta.ownerId !== user.id) return json(res, 404, { error: "未找到该项目，或无权删除" });
+      delete db.aiGames[id];
+      const f = path.join(DATA_DIR, "studio", id + ".html");
+      if (fs.existsSync(f)) { try { fs.unlinkSync(f); } catch (e) {} }
+      const gIdx = db.games.findIndex((g) => g.link === "/play/" + id);
+      if (gIdx !== -1) {
+        const [g] = db.games.splice(gIdx, 1);
+        removeUploadedCover(g.cover);
+        db.users.forEach((u) => { if (Array.isArray(u.liked)) { const i = u.liked.indexOf(g.id); if (i > -1) u.liked.splice(i, 1); } });
+      }
+      saveDb();
+      return json(res, 200, { ok: true });
+    }
+
     // ---- AI 工坊：发布生成的游戏到网站 ----
     if (method === "POST" && pathname === "/api/studio/publish") {
       const user = currentUser(req);
@@ -861,6 +894,27 @@ const server = http.createServer(async (req, res) => {
         balance: user.balance || 0,
         recharges: list,
       });
+    }
+
+    // ---- 提交问题 / 建议 / 反馈 ----
+    if (method === "POST" && pathname === "/api/feedback") {
+      const user = currentUser(req);
+      const body = await parseJson(req);
+      const rawType = sanitizeText(body.type, 20);
+      const type = ["问题", "建议", "其他"].includes(rawType) ? rawType : "其他";
+      const content = sanitizeText(body.content, 1000);
+      if (!content) return json(res, 400, { error: "请填写反馈内容" });
+      db.feedbacks.push({
+        id: uid(),
+        userId: user ? user.id : null,
+        username: user ? user.username : "游客",
+        type,
+        content,
+        createdAt: Date.now(),
+        status: "new",
+      });
+      saveDb();
+      return json(res, 201, { ok: true });
     }
 
     // ---- Admin ----
@@ -1009,8 +1063,8 @@ const server = http.createServer(async (req, res) => {
           const v = Math.max(0, Math.round(Number(body.minRecharge) || 0));
           db.settings.minRecharge = v;
         }
-        if (body.rechargeQr !== undefined) db.settings.rechargeQr = sanitizeText(body.rechargeQr, 400);
-        if (body.wechatQr !== undefined) db.settings.wechatQr = sanitizeText(body.wechatQr, 400);
+        if (body.rechargeQr !== undefined) db.settings.rechargeQr = cleanImageValue(body.rechargeQr);
+        if (body.wechatQr !== undefined) db.settings.wechatQr = cleanImageValue(body.wechatQr);
         if (body.aiApiKey !== undefined) {
           db.settings.aiApiKey = sanitizeText(body.aiApiKey, 300);
           process.env.AI_API_KEY = db.settings.aiApiKey;
@@ -1053,6 +1107,23 @@ const server = http.createServer(async (req, res) => {
           minChargeCents: db.settings.minChargeCents,
           maxChargeCents: db.settings.maxChargeCents,
         });
+      }
+
+      // ---- 反馈建议：查看 / 标记已处理 / 删除 ----
+      if (method === "GET" && pathname === "/api/admin/feedback") {
+        const list = db.feedbacks.slice().sort((a, b) => b.createdAt - a.createdAt);
+        return json(res, 200, { feedbacks: list, pending: list.filter((f) => f.status === "new").length });
+      }
+      const fbM = pathname.match(/^\/api\/admin\/feedback\/([^/]+)\/(resolve|delete)$/);
+      if (method === "POST" && fbM) {
+        const id = decodeURIComponent(fbM[1]);
+        const action = fbM[2];
+        const idx = db.feedbacks.findIndex((f) => f.id === id);
+        if (idx === -1) return json(res, 404, { error: "反馈不存在" });
+        if (action === "resolve") db.feedbacks[idx].status = "done";
+        else db.feedbacks.splice(idx, 1);
+        saveDb();
+        return json(res, 200, { ok: true });
       }
 
       if (method === "POST" && pathname === "/api/admin/password") {
