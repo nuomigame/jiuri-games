@@ -68,10 +68,17 @@ function loadDb() {
   if (typeof db.settings.pricePerGame !== "number") db.settings.pricePerGame = 500; // 分，默认 5 元/次
   if (!db.settings.rechargeQr) db.settings.rechargeQr = "";
   if (!db.settings.minRecharge) db.settings.minRecharge = 100; // 分，默认 1 元
+  if (typeof db.settings.aiApiKey !== "string") db.settings.aiApiKey = process.env.AI_API_KEY || "";
+  if (typeof db.settings.aiBaseUrl !== "string") db.settings.aiBaseUrl = process.env.AI_BASE_URL || "";
+  if (typeof db.settings.aiModel !== "string") db.settings.aiModel = process.env.AI_MODEL || "";
   ensureAdmin();
   // 早期官方游戏没有归属：统一归到主管理员，便于显示“制作人”
   const mainAdmin = db.users.find((u) => u.username === "admin");
   if (mainAdmin) db.games.forEach((g) => { if (!g.ownerId) g.ownerId = mainAdmin.id; });
+  // 后台已配置密钥时，确保生成器能读到
+  if (!process.env.AI_API_KEY && db.settings && db.settings.aiApiKey) process.env.AI_API_KEY = db.settings.aiApiKey;
+  if (!process.env.AI_BASE_URL && db.settings && db.settings.aiBaseUrl) process.env.AI_BASE_URL = db.settings.aiBaseUrl;
+  if (!process.env.AI_MODEL && db.settings && db.settings.aiModel) process.env.AI_MODEL = db.settings.aiModel;
   saveDb();
 }
 
@@ -641,6 +648,15 @@ const server = http.createServer(async (req, res) => {
       const title = sanitizeText(body.title, 60);
       if (!prompt) return json(res, 400, { error: "请填写游戏提示词" });
       const price = db.settings && db.settings.pricePerGame ? db.settings.pricePerGame : 0;
+      // 先检查余额：不足则直接拒绝，避免白白调用 AI 产生费用
+      if (price > 0 && (user.balance || 0) < price) {
+        return json(res, 402, {
+          error: "余额不足，请先充值后再生成",
+          needBalance: true,
+          price,
+          balance: user.balance || 0,
+        });
+      }
       let generation;
       try {
         generation = await studio.generateGame({ prompt, title });
@@ -650,14 +666,6 @@ const server = http.createServer(async (req, res) => {
       const usedAI = !!generation.usedAI;
       // 仅在真正调用 AI 时扣费（内置生成器免费）
       if (usedAI && price > 0) {
-        if ((user.balance || 0) < price) {
-          return json(res, 402, {
-            error: "余额不足，请先充值后再生成",
-            needBalance: true,
-            price,
-            balance: user.balance || 0,
-          });
-        }
         user.balance -= price;
       }
       const id = uid();
@@ -874,6 +882,9 @@ const server = http.createServer(async (req, res) => {
           pricePerGame: db.settings.pricePerGame || 0,
           minRecharge: db.settings.minRecharge || 100,
           rechargeQr: db.settings.rechargeQr || "",
+          aiApiKey: db.settings.aiApiKey || "",
+          aiBaseUrl: db.settings.aiBaseUrl || "",
+          aiModel: db.settings.aiModel || "",
         });
       }
       if (method === "PUT" && pathname === "/api/admin/settings") {
@@ -887,11 +898,26 @@ const server = http.createServer(async (req, res) => {
           db.settings.minRecharge = v;
         }
         if (body.rechargeQr !== undefined) db.settings.rechargeQr = sanitizeText(body.rechargeQr, 400);
+        if (body.aiApiKey !== undefined) {
+          db.settings.aiApiKey = sanitizeText(body.aiApiKey, 300);
+          process.env.AI_API_KEY = db.settings.aiApiKey;
+        }
+        if (body.aiBaseUrl !== undefined) {
+          db.settings.aiBaseUrl = sanitizeText(body.aiBaseUrl, 200);
+          if (db.settings.aiBaseUrl) process.env.AI_BASE_URL = db.settings.aiBaseUrl;
+        }
+        if (body.aiModel !== undefined) {
+          db.settings.aiModel = sanitizeText(body.aiModel, 100);
+          if (db.settings.aiModel) process.env.AI_MODEL = db.settings.aiModel;
+        }
         saveDb();
         return json(res, 200, {
           pricePerGame: db.settings.pricePerGame,
           minRecharge: db.settings.minRecharge,
           rechargeQr: db.settings.rechargeQr,
+          aiApiKey: db.settings.aiApiKey,
+          aiBaseUrl: db.settings.aiBaseUrl,
+          aiModel: db.settings.aiModel,
         });
       }
 

@@ -242,6 +242,9 @@
     const data = await api("/api/admin/settings");
     $("#priceInput").value = (data.pricePerGame || 0) / 100;
     $("#minInput").value = (data.minRecharge || 100) / 100;
+    $("#aiKeyInput").value = data.aiApiKey || "";
+    $("#aiBaseInput").value = data.aiBaseUrl || "";
+    $("#aiModelInput").value = data.aiModel || "";
     savedQr = data.rechargeQr || "";
     renderQr();
   }
@@ -261,7 +264,17 @@
     $("#settingsError").hidden = true;
     const btn = $("#settingsBtn"); btn.disabled = true; btn.textContent = "保存中…";
     try {
-      await api("/api/admin/settings", { method: "PUT", body: JSON.stringify({ pricePerGame: price, minRecharge: min, rechargeQr: savedQr }) });
+      await api("/api/admin/settings", {
+        method: "PUT",
+        body: JSON.stringify({
+          pricePerGame: price,
+          minRecharge: min,
+          rechargeQr: savedQr,
+          aiApiKey: $("#aiKeyInput").value.trim(),
+          aiBaseUrl: $("#aiBaseInput").value.trim(),
+          aiModel: $("#aiModelInput").value.trim(),
+        }),
+      });
       toast("设置已保存");
     } catch (err) { $("#settingsError").textContent = err.message; $("#settingsError").hidden = false; }
     finally { btn.disabled = false; btn.textContent = "保存设置"; }

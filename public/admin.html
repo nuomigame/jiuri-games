@@ -120,6 +120,13 @@
             <label class="field"><span class="field-label">每次 AI 生成扣费（元）</span><input type="number" name="pricePerGame" id="priceInput" min="0" step="1" /></label>
             <label class="field"><span class="field-label">单笔最低充值（元）</span><input type="number" name="minRecharge" id="minInput" min="0" step="1" /></label>
           </div>
+          <div class="settings-grid">
+            <label class="field"><span class="field-label">AI 接口密钥（API Key）</span><input type="password" name="aiApiKey" id="aiKeyInput" autocomplete="off" placeholder="sk-..." /></label>
+            <label class="field"><span class="field-label">AI 接口地址</span><input type="text" name="aiBaseUrl" id="aiBaseInput" placeholder="https://api.deepseek.com" /></label>
+          </div>
+          <div class="settings-grid">
+            <label class="field"><span class="field-label">AI 模型</span><input type="text" name="aiModel" id="aiModelInput" placeholder="deepseek-chat" /></label>
+          </div>
           <div class="cover-block">
             <span class="field-label">你的收款码（玩家扫码支付，你确认后到账）</span>
             <div class="cover-row">
