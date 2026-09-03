@@ -4,7 +4,7 @@
   const $ = (s, el = document) => el.querySelector(s);
   const modal = $("#modelModal");
   if (!modal) return;
-  let renderer, scene, camera, mixer, clock, raf, container;
+  let renderer, scene, camera, mixer, clock, raf, container, applySize;
   let dragging = false, actions = {}, animBar;
   let camTheta = 0, camPhi = 1.05, camRadius = 4, camY = 1;
   function updateCam() {
@@ -28,10 +28,11 @@
     container.innerHTML = '<div style="padding:60px;text-align:center;color:var(--muted)">加载模型…</div>';
     try { await ensureLibs(); } catch (e) { container.innerHTML = "<div style='padding:40px;text-align:center;color:var(--muted)'>模型库组件加载失败</div>"; return; }
     container.innerHTML = "";
-    const w = container.clientWidth || 680, h = container.clientHeight || 420;
     renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(w, h); renderer.setPixelRatio(1);
+    renderer.setSize(680, 420); renderer.setPixelRatio(1);
     container.appendChild(renderer.domElement);
+    applySize = () => { const w = container.clientWidth || 680, h = container.clientHeight || 420; if (renderer && camera) { renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); } };
+    requestAnimationFrame(applySize);
     const el = renderer.domElement;
     let px = 0, py = 0;
     el.addEventListener("pointerdown", (e) => { dragging = true; px = e.clientX; py = e.clientY; el.setPointerCapture(e.pointerId); });
@@ -47,10 +48,12 @@
     el.addEventListener("pointercancel", () => { dragging = false; });
     el.addEventListener("wheel", (e) => { e.preventDefault(); camRadius = Math.max(1.5, Math.min(40, camRadius * (e.deltaY > 0 ? 1.12 : 0.9))); updateCam(); }, { passive: false });
     scene = new THREE.Scene(); scene.background = new THREE.Color(0x0e0e12);
-    camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000); camera.position.set(0, 1.8, 4); camera.lookAt(0, 1, 0);
+    camera = new THREE.PerspectiveCamera(45, 680 / 420, 0.1, 1000); camera.position.set(0, 1.8, 4); camera.lookAt(0, 1, 0);
     scene.add(new THREE.AmbientLight(0xffffff, 0.7));
     const dir = new THREE.DirectionalLight(0xffffff, 0.9); dir.position.set(3, 5, 4); scene.add(dir);
     scene.add(new THREE.GridHelper(6, 10, 0x333333, 0x222222));
+    clock = new THREE.Clock();
+    animate();
     const loader = new THREE.GLTFLoader();
     loader.load(url, (gltf) => {
       const obj = gltf.scene || gltf.scenes[0];
@@ -70,8 +73,6 @@
         if (first) actions[first].play();
         renderAnims();
       }
-      clock = new THREE.Clock();
-      animate();
     }, undefined, () => { container.innerHTML = "<div style='padding:40px;text-align:center;color:var(--muted)'>模型加载失败</div>"; });
   }
   function animate() {
@@ -83,7 +84,7 @@
   function stopViewer() {
     if (raf) cancelAnimationFrame(raf); raf = null;
     if (renderer) { renderer.dispose(); }
-    mixer = null; renderer = null; scene = null; camera = null; clock = null; actions = {};
+    mixer = null; renderer = null; scene = null; camera = null; clock = null; actions = {}; applySize = null;
     if (animBar) animBar.innerHTML = "";
   }
   function renderAnims() {
@@ -106,4 +107,5 @@
   };
   modal.addEventListener("click", (e) => { if (e.target.closest("[data-close-model]")) close(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !modal.hidden) close(); });
+  window.addEventListener("resize", () => { if (applySize) applySize(); });
 })();

@@ -24,8 +24,7 @@
     isAdmin = !!(me && me.role === "admin");
     const isDev = !!(me && (me.role === "developer" || me.role === "admin"));
     if (me) {
-      navAuthBtn.textContent = `${me.username} · 退出`;
-      navAuthBtn.dataset.logged = "1";
+      navAuthBtn.textContent = me.username;
     } else {
       navAuthBtn.textContent = "登录 / 注册";
     }
@@ -173,7 +172,7 @@
     }
   });
   navAuthBtn.addEventListener("click", async () => {
-    if (navAuthBtn.dataset.logged) { try { await api("/api/logout", { method: "POST", body: "{}" }); } catch (e) {} location.reload(); }
+    if (me) { location.href = "/user/" + encodeURIComponent(me.username); }
     else location.href = "/";
   });
 

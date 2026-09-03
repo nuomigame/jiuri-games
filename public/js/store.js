@@ -27,19 +27,15 @@
       const data = await api("/api/me");
       const u = data.user;
       if (u) {
-        navAuthBtn.textContent = `${u.username} · 退出`;
-        navAuthBtn.dataset.logged = "1";
+        navAuthBtn.textContent = u.username;
         if (u.role === "developer" || u.role === "admin") $("#devEntry").hidden = false;
       }
     } catch (e) {}
   }
   navAuthBtn.addEventListener("click", async () => {
-    if (navAuthBtn.dataset.logged) {
-      try { await api("/api/logout", { method: "POST", body: "{}" }); } catch (e) {}
-      location.reload();
-    } else {
-      location.href = "/";
-    }
+    const me = await api("/api/me").catch(() => ({}));
+    if (me.data && me.data.user) location.href = "/user/" + encodeURIComponent(me.data.user.username);
+    else location.href = "/";
   });
 
   // ---------- filter & sort ----------

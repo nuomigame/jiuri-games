@@ -37,7 +37,7 @@
 
   async function load() {
     const me = await api("/api/me");
-    if (me.data.user) { navAuthBtn.textContent = `${me.data.user.username} · 退出`; navAuthBtn.dataset.logged = "1"; }
+    if (me.data.user) { navAuthBtn.textContent = me.data.user.username; window.__rechargeUser = me.data.user; }
     else navAuthBtn.textContent = "登录 / 注册";
     const cfg = await api("/api/config");
     const d = cfg.data;
@@ -63,7 +63,7 @@
       return `<div class="rc-row"><span class="amt">¥${f(r.amountCents)}</span><span style="color:var(--muted);font-size:13px">${date}</span>${st}</div>`;
     }).join("");
   }
-  navAuthBtn.addEventListener("click", async () => { if (navAuthBtn.dataset.logged) { try { await api("/api/logout", { method: "POST", body: "{}" }); } catch (e) {} location.reload(); } else location.href = "/"; });
+  navAuthBtn.addEventListener("click", async () => { const u = window.__rechargeUser; if (u) location.href = "/user/" + encodeURIComponent(u.username); else location.href = "/"; });
 
   $("#submitBtn").addEventListener("click", async () => {
     const amount = Math.round(parseFloat($("#amountInput").value || "0") * 100);
