@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0a0a0c" />
+  <title>游戏商店 · 爱冒险玖日</title>
+  <link rel="icon" href="/assets/img/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css?v=5" />
+  <link rel="stylesheet" href="/css/store.css?v=1" />
+</head>
+<body>
+  <!-- ============ STORE NAV ============ -->
+  <header class="store-nav">
+    <div class="store-nav-inner container">
+      <a class="brand" href="/">
+        <span class="brand-mark"><img src="/assets/img/logo.png" alt="" /></span>
+        <span class="brand-name">爱冒险玖日<em>Game Store</em></span>
+      </a>
+      <nav class="store-links">
+        <a href="/store" class="is-active">商店</a>
+        <a href="/">首页</a>
+        <a href="/#games">游戏</a>
+        <a href="/#about">关于</a>
+        <a href="/#contact">联系</a>
+      </nav>
+      <div class="nav-actions">
+        <button class="btn btn-ghost user-btn" id="navAuthBtn">登录 / 注册</button>
+        <a class="btn btn-primary" id="devEntry" href="/developer" hidden>开发者中心</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ FEATURED HERO ============ -->
+  <section class="store-hero">
+    <div class="container">
+      <div class="featured" id="featured">
+        <div class="featured-track" id="featuredTrack"></div>
+        <button class="featured-nav" id="featPrev" aria-label="上一张">‹</button>
+        <button class="featured-nav next" id="featNext" aria-label="下一张">›</button>
+        <div class="featured-dots" id="featDots"></div>
+        <div class="featured-lbl"><span>✨ 编辑精选</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TOOLBAR ============ -->
+  <section class="store-tools">
+    <div class="container">
+      <div class="store-toolbar">
+        <label class="store-searchbox" for="storeSearch">
+          <span class="search-ico" aria-hidden="true">⌕</span>
+          <input class="store-search" id="storeSearch" type="search" placeholder="搜索商店里的游戏…" autocomplete="off">
+        </label>
+        <div class="store-sort">
+          <button class="sort-btn is-active" data-sort="综合">综合</button>
+          <button class="sort-btn" data-sort="人气">人气</button>
+          <button class="sort-btn" data-sort="最新">最新</button>
+          <button class="sort-btn" data-sort="精选">精选</button>
+        </div>
+      </div>
+      <div class="store-cats" id="storeCats"></div>
+    </div>
+  </section>
+
+  <!-- ============ GAMES GRID ============ -->
+  <section class="store-grid-section">
+    <div class="container">
+      <div class="store-grid-head">
+        <h2 class="section-title">探索<span>游戏</span></h2>
+        <span class="card-count" id="storeCount">0 款</span>
+      </div>
+      <div class="store-grid" id="storeGrid"></div>
+      <div class="empty-state" id="storeEmpty" hidden><p>没有找到匹配的游戏。</p></div>
+    </div>
+  </section>
+
+  <!-- ============ GAME DETAIL MODAL ============ -->
+  <div class="modal game-modal" id="gameModal" hidden>
+    <div class="modal-backdrop" data-close-game></div>
+    <div class="modal-panel gm-panel">
+      <button class="modal-close" data-close-game aria-label="关闭">×</button>
+      <div class="gm-gallery">
+        <button class="gm-nav" id="gmPrev" aria-label="上一张">‹</button>
+        <img id="gmImage" src="" alt="">
+        <button class="gm-nav" id="gmNext" aria-label="下一张">›</button>
+        <div class="gm-dots" id="gmDots"></div>
+        <span class="gm-counter" id="gmCounter">1 / 1</span>
+      </div>
+      <div class="gm-info">
+        <h2 class="gm-title" id="gmTitle"></h2>
+        <div class="gm-meta">
+          <span class="gm-type" id="gmType"></span>
+          <span class="gm-author-wrap" id="gmAuthor"></span>
+          <span class="gm-likes" id="gmLikes">♥ 0</span>
+        </div>
+        <p class="gm-desc" id="gmDesc"></p>
+        <div class="gm-tags" id="gmTags"></div>
+        <a class="btn btn-primary btn-block gm-play" id="gmPlay" href="#" target="_blank" rel="noopener">开始游戏</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="/js/game-modal.js?v=1"></script>
+  <script src="/js/store.js?v=1"></script>
+</body>
+</html>

@@ -330,6 +330,7 @@ function serveStatic(req, res, pathname) {
   if (pathname === "/developer" || pathname === "/developer/") rel = "developer.html";
   if (pathname === "/user" || pathname === "/user/") rel = "user.html";
   if (rel.startsWith("user/")) rel = "user.html";
+  if (pathname === "/store" || pathname === "/store/") rel = "store.html";
   // 上传的封面存放在 UPLOADS（映射到 `/uploads/...`），其它静态资源在 PUBLIC。
   // 上传路径的磁盘名要去掉 `uploads/` 前缀（否则会拼成 uploads/uploads/xxx）。
   const isUpload = rel.startsWith("uploads/");
