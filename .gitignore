@@ -1,7 +1,7 @@
 node_modules/
 uploads/*
 !uploads/.gitkeep
-data/db.json
+data/
 shot-*.png
 build/
 *.zip

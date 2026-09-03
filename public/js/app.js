@@ -421,7 +421,7 @@
   function updateAuthUI() {
     if (state.user) {
       const isAdmin = state.user.role === "admin";
-      navAuthBtn.textContent = `${state.user.username} · 退出`;
+      navAuthBtn.textContent = state.user.username;
       const ml = $("#manageLink");
       ml.hidden = !isAdmin;
       if (!isAdmin) toast("欢迎回来，" + state.user.username);
@@ -479,11 +479,8 @@
   navAuthBtn.addEventListener("click", async () => {
     if (IS_STATIC) return;
     if (state.user) {
-      try { await api("/api/logout", { method: "POST", body: "{}" }); } catch (e) {}
-      state.user = null;
-      state.devApp = null;
-      updateAuthUI();
-      toast("已退出登录");
+      // 点用户名进入个人主页，不再直接退出
+      location.href = "/user/" + encodeURIComponent(state.user.username);
     } else {
       openAuth();
     }

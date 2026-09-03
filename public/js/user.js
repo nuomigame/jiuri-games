@@ -37,6 +37,7 @@
     $("#avatarSlot").innerHTML = `<img src="${esc(avSrc(u.avatar, u.username))}" alt="" onerror="this.onerror=null;this.src='${fb}'" />`;
     $("#pBadges").innerHTML = badges(u.role).map((b) => `<span class="badge ${b.k}">● ${esc(b.label)}</span>`).join("");
     $("#pActions").hidden = !isOwn;
+    $("#profileFooter").hidden = !isOwn;
     $("#gamesHeading").textContent = isOwn ? "我的游戏" : "TA 的游戏";
 
     const grid = $("#gamesGrid");
@@ -96,6 +97,7 @@
   function initEdit(u) {
     savedAvatar = u.avatar || "";
     setPreview(savedAvatar);
+    $("#nameInput").value = u.username || "";
   }
   $("#editBtn").addEventListener("click", () => { editModal.hidden = false; document.body.style.overflow = "hidden"; });
   $$("[data-close-edit]").forEach((el) => el.addEventListener("click", () => { editModal.hidden = true; document.body.style.overflow = ""; }));
@@ -110,14 +112,24 @@
   $("#editForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const bio = $("#bioInput").value;
+    const newName = $("#nameInput").value.trim();
     const btn = $("#editSave"); btn.disabled = true; btn.textContent = "保存中…";
     $("#editError").hidden = true;
     try {
-      await api("/api/me/profile", { method: "PUT", body: JSON.stringify({ avatar: savedAvatar, bio }) });
+      await api("/api/me/profile", { method: "PUT", body: JSON.stringify({ avatar: savedAvatar, bio, username: newName }) });
       toast("资料已更新");
       editModal.hidden = true; document.body.style.overflow = "";
-      await load(true);
+      if (newName && newName !== uname) {
+        location.href = "/user/" + encodeURIComponent(newName);
+      } else {
+        await load(true);
+      }
     } catch (err) { $("#editError").textContent = err.message; $("#editError").hidden = false; }
     finally { btn.disabled = false; btn.textContent = "保存资料"; }
+  });
+
+  $("#logoutBtn").addEventListener("click", async () => {
+    try { await api("/api/logout", { method: "POST", body: "{}" }); } catch (e) {}
+    location.href = "/";
   });
 })();

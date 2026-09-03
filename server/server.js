@@ -221,10 +221,10 @@ function captchaSvg(code) {
   const colors = ["#c8f04b", "#4bc1f0", "#f0a35a", "#c55cff", "#ff5c8a"];
   const chars = code.split("");
   const texts = chars.map((ch, i) => {
-    const x = 22 + i * 18;
-    const y = 30 + ((i % 3) * 6) - 6;
-    const rot = (Math.random() * 16 - 8).toFixed(1);
-    return `<text x="${x}" y="${y}" fill="${colors[i % colors.length]}" font-family="Arial" font-weight="bold" font-size="26" transform="rotate(${rot} ${x} ${y})">${ch}</text>`;
+    const x = 16 + i * 16;
+    const y = 31 + ((i % 3) * 5) - 6;
+    const rot = (Math.random() * 14 - 7).toFixed(1);
+    return `<text x="${x}" y="${y}" fill="${colors[i % colors.length]}" font-family="Arial" font-weight="bold" font-size="22" transform="rotate(${rot} ${x} ${y})">${ch}</text>`;
   }).join("");
   let noise = "";
   for (let i = 0; i < 6; i++) {
@@ -577,6 +577,15 @@ const server = http.createServer(async (req, res) => {
         if (av) user.avatar = av;
       }
       if (body.bio !== undefined) user.bio = sanitizeText(body.bio, 240);
+      if (body.username !== undefined && body.username !== user.username) {
+        const newName = sanitizeText(body.username, 40);
+        if (newName.length < 2) return json(res, 400, { error: "用户名至少 2 个字符" });
+        if (newName.toLowerCase() === "admin") return json(res, 400, { error: "该用户名不可用" });
+        if (db.users.some((u) => u.username.toLowerCase() === newName.toLowerCase() && u.id !== user.id)) {
+          return json(res, 409, { error: "该用户名已被占用" });
+        }
+        user.username = newName;
+      }
       saveDb();
       return json(res, 200, { user: publicUser(user) });
     }

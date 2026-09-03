@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css?v=4" />
+  <link rel="stylesheet" href="/css/style.css?v=5" />
 </head>
 <body>
   <header class="profile-nav">
@@ -41,6 +41,9 @@
       <div class="games-grid" id="gamesGrid"></div>
       <div class="profile-empty" id="noGames" hidden>还没有发布游戏。</div>
     </section>
+    <section class="profile-footer" id="profileFooter" hidden>
+      <button class="btn btn-ghost" id="logoutBtn">退出登录</button>
+    </section>
   </main>
 
   <!-- Edit own profile modal -->
@@ -51,6 +54,7 @@
       <p class="kicker">个人资料</p>
       <h2 class="modal-title">编辑资料</h2>
       <form class="auth-form" id="editForm">
+        <label class="field"><span class="field-label">用户名</span><input type="text" name="username" id="nameInput" maxlength="40" autocomplete="off" /></label>
         <div class="cover-block">
           <span class="field-label">头像</span>
           <div class="cover-row">
@@ -97,6 +101,6 @@
 
   <div class="toast" id="toast" hidden></div>
   <script src="/js/game-modal.js?v=3"></script>
-  <script src="/js/user.js?v=1"></script>
+  <script src="/js/user.js?v=2"></script>
 </body>
 </html>
