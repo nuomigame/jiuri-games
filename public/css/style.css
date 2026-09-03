@@ -621,6 +621,9 @@ body::before {
 .feedback-fab:hover { transform: translateY(-2px); }
 .modal select { width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 12px; padding: 13px 16px; color: var(--txt); font-family: var(--font); font-size: 15px; outline: none; color-scheme: dark; }
 .modal select option { background: #101014; color: var(--txt); }
+.captcha-row { display: flex; align-items: center; gap: 10px; }
+.captcha-row input { flex: 1; }
+.captcha-img { width: 120px; height: 44px; border-radius: 8px; border: 1px solid var(--line); cursor: pointer; background: #131318; flex: 0 0 120px; }
 .cover-block { display: flex; flex-direction: column; gap: 8px; }
 .cover-row { display: flex; gap: 16px; align-items: flex-start; }
 .cover-preview { width: 150px; flex: 0 0 150px; aspect-ratio: 1 / 1; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--bg-3); }

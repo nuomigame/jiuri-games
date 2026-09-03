@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css?v=5" />
+  <link rel="stylesheet" href="/css/style.css?v=6" />
 </head>
 <body>
   <div class="site-grain" aria-hidden="true"></div>
@@ -207,6 +207,14 @@
           <span class="field-label">密码</span>
           <input type="password" name="password" autocomplete="current-password" required />
         </label>
+        <label class="field">
+          <span class="field-label">验证码</span>
+          <div class="captcha-row">
+            <input type="text" name="captcha" id="captchaInput" maxlength="6" autocomplete="off" placeholder="输入右侧验证码" required />
+            <img class="captcha-img" id="captchaImg" alt="验证码" title="看不清？点击刷新" />
+          </div>
+        </label>
+        <input type="hidden" name="captchaToken" id="captchaToken" />
         <p class="form-error" id="authError" hidden></p>
         <button type="submit" class="btn btn-primary btn-block" id="authSubmit">登录</button>
       </form>
@@ -281,6 +289,6 @@
 
   <script src="/js/game-modal.js?v=3"></script>
   <script src="/js/feedback.js?v=1"></script>
-  <script src="/js/app.js?v=9"></script>
+  <script src="/js/app.js?v=10"></script>
 </body>
 </html>

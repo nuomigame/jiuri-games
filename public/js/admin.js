@@ -53,8 +53,19 @@
     } else {
       gate.hidden = false;
       dash.hidden = true;
+      loadCaptcha();
     }
   }
+
+  async function loadCaptcha() {
+    try {
+      const d = await api("/api/captcha");
+      $("#captchaImg").src = d.image;
+      $("#captchaToken").value = d.token;
+      $("#captchaInput").value = "";
+    } catch (e) {}
+  }
+  $("#captchaImg")?.addEventListener("click", loadCaptcha);
 
   function showDash() {
     gate.hidden = true;
@@ -72,13 +83,14 @@
     const btn = gateForm.querySelector("button[type=submit]");
     btn.disabled = true; btn.textContent = "验证中…";
     try {
-      await api("/api/login", { method: "POST", body: JSON.stringify({ username, password }) });
+      await api("/api/login", { method: "POST", body: JSON.stringify({ username, password, captcha: fd.get("captcha"), captchaToken: fd.get("captchaToken") }) });
       const admin = await checkAdmin();
       if (!admin) { gateError.textContent = "该账号没有管理员权限"; gateError.hidden = false; return; }
       showDash();
     } catch (err) {
       gateError.textContent = err.message;
       gateError.hidden = false;
+      if (/验证码/.test(err.message)) loadCaptcha();
     } finally {
       btn.disabled = false; btn.textContent = "进入后台";
     }

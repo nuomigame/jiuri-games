@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/admin.css?v=13" />
+  <link rel="stylesheet" href="/css/admin.css?v=14" />
 </head>
 <body>
   <!-- Gate -->
@@ -26,6 +26,14 @@
           <span class="field-label">密码</span>
           <input type="password" name="password" autocomplete="current-password" required />
         </label>
+        <label class="field">
+          <span class="field-label">验证码</span>
+          <div class="captcha-row">
+            <input type="text" name="captcha" id="captchaInput" maxlength="6" autocomplete="off" placeholder="输入右侧验证码" required />
+            <img class="captcha-img" id="captchaImg" alt="验证码" title="看不清？点击刷新" />
+          </div>
+        </label>
+        <input type="hidden" name="captchaToken" id="captchaToken" />
         <p class="form-error" id="gateError" hidden></p>
         <button class="btn btn-primary btn-block" type="submit">进入后台</button>
       </form>
@@ -274,6 +282,6 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="/js/admin.js?v=13"></script>
+  <script src="/js/admin.js?v=14"></script>
 </body>
 </html>

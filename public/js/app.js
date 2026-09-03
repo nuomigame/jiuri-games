@@ -392,6 +392,7 @@
     authModal.hidden = false;
     document.body.style.overflow = "hidden";
     setTimeout(() => $("input[name=username]", authForm)?.focus(), 60);
+    loadCaptcha();
   }
   function closeAuth() {
     authModal.hidden = true;
@@ -404,6 +405,15 @@
     authSubmit.textContent = mode === "login" ? "登录" : "注册并进入";
     authError.hidden = true;
   }
+  async function loadCaptcha() {
+    try {
+      const d = await api("/api/captcha");
+      $("#captchaImg").src = d.image;
+      $("#captchaToken").value = d.token;
+      $("#captchaInput").value = "";
+    } catch (e) {}
+  }
+  $("#captchaImg")?.addEventListener("click", loadCaptcha);
   $$(".auth-tab").forEach((t) => t.addEventListener("click", () => setAuthMode(t.dataset.auth)));
   $$("[data-close-auth]").forEach((el) => el.addEventListener("click", closeAuth));
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAuth(); });
@@ -442,8 +452,11 @@
     authSubmit.disabled = true;
     authSubmit.textContent = "请稍候…";
     try {
-      const path = state.authMode === "login" ? "/api/login" : "/api/register";
-      const body = state.authMode === "login" ? { username, password } : { username, password, email };
+    const path = state.authMode === "login" ? "/api/login" : "/api/register";
+    const body = Object.assign(
+      state.authMode === "login" ? { username, password } : { username, password, email },
+      { captcha: fd.get("captcha"), captchaToken: fd.get("captchaToken") }
+    );
       const data = await api(path, { method: "POST", body: JSON.stringify(body) });
       const me = await api("/api/me");
       state.user = me.user;
@@ -455,6 +468,7 @@
     } catch (err) {
       authError.textContent = err.message;
       authError.hidden = false;
+      if (/验证码/.test(err.message)) loadCaptcha();
     } finally {
       authSubmit.disabled = false;
       setAuthMode(state.authMode);

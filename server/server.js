@@ -65,6 +65,7 @@ function loadDb() {
   if (!db.aiGames || typeof db.aiGames !== "object") db.aiGames = {};
   if (!Array.isArray(db.recharges)) db.recharges = [];
   if (!Array.isArray(db.feedbacks)) db.feedbacks = [];
+  if (!Array.isArray(db.models)) db.models = [];
   if (!db.settings || typeof db.settings !== "object") db.settings = {};
   if (typeof db.settings.pricePerGame !== "number") db.settings.pricePerGame = 500; // 分，默认 5 元/次
   if (!db.settings.rechargeQr) db.settings.rechargeQr = "";
@@ -190,6 +191,52 @@ function currentUser(req) {
 
 function cookieFor(token, maxAgeSeconds) {
   return `sid=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}`;
+}
+
+// ---------------------------------------------------------------------------
+// Captcha（登录/注册验证码，纯本站 SVG，无需第三方）
+// ---------------------------------------------------------------------------
+function captchaSvg(code) {
+  const colors = ["#c8f04b", "#4bc1f0", "#f0a35a", "#c55cff", "#ff5c8a"];
+  const chars = code.split("");
+  const texts = chars.map((ch, i) => {
+    const x = 22 + i * 18;
+    const y = 30 + ((i % 3) * 6) - 6;
+    const rot = (Math.random() * 16 - 8).toFixed(1);
+    return `<text x="${x}" y="${y}" fill="${colors[i % colors.length]}" font-family="Arial" font-weight="bold" font-size="26" transform="rotate(${rot} ${x} ${y})">${ch}</text>`;
+  }).join("");
+  let noise = "";
+  for (let i = 0; i < 6; i++) {
+    noise += `<line x1="${(Math.random() * 110).toFixed(0)}" y1="${(Math.random() * 44).toFixed(0)}" x2="${(Math.random() * 110).toFixed(0)}" y2="${(Math.random() * 44).toFixed(0)}" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="44"><rect width="120" height="44" fill="#131318" rx="6"/><g>${texts}</g>${noise}</svg>`;
+}
+
+function makeCaptcha() {
+  const code = crypto.randomBytes(3).toString("hex").toUpperCase();
+  const exp = Date.now() + 5 * 60e3;
+  const body = Buffer.from(JSON.stringify({ exp, code })).toString("base64url");
+  const sig = crypto.createHmac("sha256", db.secret).update(body).digest("base64url");
+  return {
+    token: `${body}.${sig}`,
+    image: "data:image/svg+xml," + encodeURIComponent(captchaSvg(code)),
+  };
+}
+
+function verifyCaptcha(token, answer) {
+  if (!token) return false;
+  const parts = token.split(".");
+  if (parts.length !== 2) return false;
+  const [body, sig] = parts;
+  const expect = crypto.createHmac("sha256", db.secret).update(body).digest("base64url");
+  if (sig.length !== expect.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return false;
+  try {
+    const p = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+    if (p.exp < Date.now()) return false;
+    return String(answer || "").toUpperCase() === String(p.code || "").toUpperCase();
+  } catch (e) {
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -440,9 +487,15 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    // ---- 登录/注册验证码 ----
+    if (method === "GET" && pathname === "/api/captcha") {
+      return json(res, 200, makeCaptcha());
+    }
+
     // ---- Auth ----
     if (method === "POST" && pathname === "/api/register") {
       const body = await parseJson(req);
+      if (!verifyCaptcha(body.captchaToken, body.captcha)) return json(res, 400, { error: "验证码错误，请重试", captcha: true });
       const username = sanitizeText(body.username, 40);
       const password = sanitizeText(body.password, 200);
       const email = sanitizeText(body.email, 120);
@@ -462,6 +515,7 @@ const server = http.createServer(async (req, res) => {
 
     if (method === "POST" && pathname === "/api/login") {
       const body = await parseJson(req);
+      if (!verifyCaptcha(body.captchaToken, body.captcha)) return json(res, 400, { error: "验证码错误，请重试", captcha: true });
       const username = sanitizeText(body.username, 40);
       const password = sanitizeText(body.password, 200);
       const user = db.users.find((u) => u.username.toLowerCase() === username.toLowerCase());
@@ -614,7 +668,7 @@ const server = http.createServer(async (req, res) => {
     // ---- Developer: create own game (pending review) ----
     if (method === "POST" && pathname === "/api/developer/games") {
       const user = currentUser(req);
-      if (!user || user.role !== "developer") return json(res, 403, { error: "需要开发者权限" });
+      if (!user || (user.role !== "developer" && user.role !== "admin")) return json(res, 403, { error: "需要开发者权限" });
       const body = await parseJson(req);
       const data = validateGameInput(body);
       const now = Date.now();
@@ -627,7 +681,7 @@ const server = http.createServer(async (req, res) => {
     // ---- Developer: edit own game ----
     if (method === "PUT" && pathname.startsWith("/api/developer/games/")) {
       const user = currentUser(req);
-      if (!user || user.role !== "developer") return json(res, 403, { error: "需要开发者权限" });
+      if (!user || (user.role !== "developer" && user.role !== "admin")) return json(res, 403, { error: "需要开发者权限" });
       const id = decodeURIComponent(pathname.split("/").pop());
       const idx = db.games.findIndex((g) => g.id === id);
       if (idx === -1) return json(res, 404, { error: "游戏不存在" });
@@ -645,7 +699,7 @@ const server = http.createServer(async (req, res) => {
     // ---- Developer: delete own game ---- 
     if (method === "DELETE" && pathname.startsWith("/api/developer/games/")) {
       const user = currentUser(req);
-      if (!user || user.role !== "developer") return json(res, 403, { error: "需要开发者权限" });
+      if (!user || (user.role !== "developer" && user.role !== "admin")) return json(res, 403, { error: "需要开发者权限" });
       const id = decodeURIComponent(pathname.split("/").pop());
       const idx = db.games.findIndex((g) => g.id === id);
       if (idx === -1) return json(res, 404, { error: "游戏不存在" });
@@ -668,7 +722,7 @@ const server = http.createServer(async (req, res) => {
     // ---- Developer: 下线 / 上线自己的游戏 ----
     if (method === "POST" && pathname.startsWith("/api/developer/games/") && (pathname.endsWith("/offline") || pathname.endsWith("/online"))) {
       const user = currentUser(req);
-      if (!user || user.role !== "developer") return json(res, 403, { error: "需要开发者权限" });
+      if (!user || (user.role !== "developer" && user.role !== "admin")) return json(res, 403, { error: "需要开发者权限" });
       const id = decodeURIComponent(pathname.split("/")[4] || "");
       const idx = db.games.findIndex((g) => g.id === id);
       if (idx === -1) return json(res, 404, { error: "游戏不存在" });

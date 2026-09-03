@@ -51,6 +51,17 @@
     }
   }
 
+  async function loadCaptcha() {
+    try {
+      const d = await api("/api/captcha");
+      $("#captchaImg").src = d.image;
+      $("#captchaToken").value = d.token;
+      $("#captchaInput").value = "";
+    } catch (e) {}
+  }
+  $("#captchaImg")?.addEventListener("click", loadCaptcha);
+  loadCaptcha();
+
   $("#gateForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -58,10 +69,11 @@
     btn.disabled = true; btn.textContent = "验证中…";
     $("#gateError").hidden = true;
     try {
-      await api("/api/login", { method: "POST", body: JSON.stringify({ username: fd.get("username").trim(), password: fd.get("password") }) });
+      await api("/api/login", { method: "POST", body: JSON.stringify({ username: fd.get("username").trim(), password: fd.get("password"), captcha: fd.get("captcha"), captchaToken: fd.get("captchaToken") }) });
       boot();
     } catch (err) {
       $("#gateError").textContent = err.message; $("#gateError").hidden = false;
+      if (/验证码/.test(err.message)) loadCaptcha();
     } finally { btn.disabled = false; btn.textContent = "进入开发者中心"; }
   });
   $("#logoutBtn").addEventListener("click", async () => {
