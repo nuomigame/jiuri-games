@@ -76,7 +76,7 @@
     $("#genBtn").textContent = "修改游戏";
     $("#projectTools").hidden = false;
     const his = (p.history && p.history.length ? p.history : [p.prompt]).filter((h) => h && h.trim());
-    $("#projHistory").innerHTML = "<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b>修改记录（供你查看，不会重复生成）：</b><button type="button" class="proj-clear" id="clearHistoryBtn">清理记录</button></div>" + his.map((h, i) => `<div>${i + 1}. ${escapeHtml(h)}</div>`).join("");
+    $("#projHistory").innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b>修改记录（供你查看，不会重复生成）：</b><button type="button" class="proj-clear" id="clearHistoryBtn">清理记录</button></div>' + his.map((h, i) => `<div>${i + 1}. ${escapeHtml(h)}</div>`).join("");
     $("#projHistory").hidden = false;
     toast("已选择项目，填写要修改的地方后点「修改游戏」");
   });
@@ -182,7 +182,7 @@
         $("#promptInput").value = "";
         $("#promptInput").placeholder = "输入本次要修改/新增的要求（系统会结合之前所有要求）";
         const his = (p.history && p.history.length ? p.history : [p.prompt]).filter((h) => h && h.trim());
-        $("#projHistory").innerHTML = "<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b>修改记录（供你查看，不会重复生成）：</b><button type="button" class="proj-clear" id="clearHistoryBtn">清理记录</button></div>" + his.map((h, i) => `<div>${i + 1}. ${escapeHtml(h)}</div>`).join("");
+        $("#projHistory").innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b>修改记录（供你查看，不会重复生成）：</b><button type="button" class="proj-clear" id="clearHistoryBtn">清理记录</button></div>' + his.map((h, i) => `<div>${i + 1}. ${escapeHtml(h)}</div>`).join("");
         $("#projHistory").hidden = false;
         $("#projectTools").hidden = false;
       }
