@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/style.css?v=5" />
-  <link rel="stylesheet" href="/css/studio.css?v=2" />
+  <link rel="stylesheet" href="/css/studio.css?v=3" />
 </head>
 <body>
   <header class="studio-nav">
@@ -51,6 +51,9 @@
       <section class="studio-card">
         <h2 class="card-h">① 描述你的游戏</h2>
         <label class="field"><span class="field-label">我的项目（可选，选一个来修改之前用 AI 生成的游戏）</span><select id="projectSelect"><option value="">＋ 新建一个游戏</option></select></label>
+        <div class="project-tools" id="projectTools" hidden>
+          <button type="button" class="proj-del" id="deleteProjectBtn">🗑 删除选中的项目（含已发布的那份）</button>
+        </div>
         <label class="field"><span class="field-label">游戏名称（选填）</span><input type="text" id="titleInput" maxlength="40" placeholder="例如：金币猎人" /></label>
         <label class="field">
           <span class="field-label">提示词 *（越具体越像你想要的样子）</span>
@@ -107,6 +110,6 @@
   </div>
   <div class="toast" id="toast" hidden></div>
   <script src="/js/feedback.js?v=1"></script>
-  <script src="/js/studio.js?v=1"></script>
+  <script src="/js/studio.js?v=2"></script>
 </body>
 </html>

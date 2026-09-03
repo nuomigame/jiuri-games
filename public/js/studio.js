@@ -58,14 +58,30 @@
 
   $("#projectSelect").addEventListener("change", () => {
     const id = $("#projectSelect").value;
-    if (!id) { currentSourceId = null; $("#genBtn").textContent = "生成游戏"; return; }
+    if (!id) { currentSourceId = null; $("#genBtn").textContent = "生成游戏"; $("#projectTools").hidden = true; return; }
     const p = projects.find((x) => x.id === id);
     if (!p) return;
     currentSourceId = id;
     $("#titleInput").value = p.title || "";
     $("#promptInput").value = p.prompt || "";
     $("#genBtn").textContent = "修改游戏";
+    $("#projectTools").hidden = false;
     toast("已选择项目，填写要修改的地方后点「修改游戏」");
+  });
+  $("#deleteProjectBtn").addEventListener("click", async () => {
+    if (!currentSourceId) { toast("请先在「我的项目」里选一个要删除的项目"); return; }
+    const p = projects.find((x) => x.id === currentSourceId);
+    if (!confirm(`确定删除项目《${p ? p.title : "该游戏"}》？其生成历史和已发布版本都会被移除，不可恢复。`)) return;
+    try {
+      await api("/api/studio/project/" + currentSourceId, { method: "DELETE" });
+      toast("已删除该项目");
+      currentSourceId = null; images = [];
+      $("#projectSelect").value = "";
+      $("#titleInput").value = ""; $("#promptInput").value = "";
+      $("#genBtn").textContent = "生成游戏";
+      $("#projectTools").hidden = true; $("#previewCard").hidden = true;
+      loadProjects();
+    } catch (err) { toast(err.message); }
   });
 
   function renderImages() {
