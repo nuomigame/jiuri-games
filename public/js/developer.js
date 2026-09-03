@@ -180,6 +180,9 @@
     coverUrlInput.value = ""; savedCover = DEFAULT_COVER; setCoverPreview(DEFAULT_COVER);
     const form = $("#editorForm");
     if (game) {
+      const isAi = game.source === "ai";
+      $("#linkField").hidden = isAi;
+      $("#linkInput").required = !isAi;
       $("#editorKicker").textContent = "编辑游戏";
       $("#editorTitle").textContent = "编辑：请更新内容";
       form.querySelector('[name=title]').value = game.title || "";
@@ -200,6 +203,8 @@
       form.reset(); form.querySelector('[name=id]').value = "";
       setType("web"); setCoverPreview(DEFAULT_COVER);
       savedShots = []; renderShots();
+      $("#linkField").hidden = false;
+      $("#linkInput").required = true;
     }
     $("#editor").hidden = false;
     document.body.style.overflow = "hidden";

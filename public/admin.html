@@ -212,9 +212,9 @@
           <span class="field-label">游戏名称 *</span>
           <input type="text" name="title" required maxlength="80" placeholder="例如：光之迷宫" />
         </label>
-        <label class="field">
+        <label class="field" id="linkField">
           <span class="field-label" id="linkLabel">游戏链接 *</span>
-          <input type="url" name="link" id="linkInput" required placeholder="https://... 网页游戏地址" />
+          <input type="text" name="link" id="linkInput" required placeholder="https://... 或 /play/xxx" />
         </label>
         <label class="field"><span class="field-label">游戏类型 *</span></label>
         <div class="switcher" id="typeSwitch">
@@ -274,6 +274,6 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="/js/admin.js?v=12"></script>
+  <script src="/js/admin.js?v=13"></script>
 </body>
 </html>

@@ -403,6 +403,9 @@
       setType(game.type === "download" ? "download" : "web");
       savedShots = Array.isArray(game.images) ? game.images.slice() : [];
       renderShots();
+      const isAi = game.source === "ai";
+      $("#linkField").hidden = isAi;
+      $("#linkInput").required = !isAi;
       if (game.cover && /^(https?:)?\/\//i.test(game.cover)) {
         coverUrlInput.value = game.cover;
         setCoverPreview(game.cover);
@@ -418,6 +421,8 @@
       setType("web");
       setCoverPreview(DEFAULT_COVER);
       savedShots = []; renderShots();
+      $("#linkField").hidden = false;
+      $("#linkInput").required = true;
     }
     editor.hidden = false;
     document.body.style.overflow = "hidden";

@@ -118,9 +118,9 @@
           <span class="field-label">游戏名称 *</span>
           <input type="text" name="title" required maxlength="80" placeholder="例如：光之迷宫" />
         </label>
-        <label class="field">
+        <label class="field" id="linkField">
           <span class="field-label" id="linkLabel">网页游戏地址 *</span>
-          <input type="url" name="link" id="linkInput" required placeholder="https://... 网页游戏地址" />
+          <input type="text" name="link" id="linkInput" required placeholder="https://... 或 /play/xxx" />
         </label>
         <label class="field"><span class="field-label">简介</span><textarea name="description" rows="3" maxlength="600" placeholder="一句话介绍这个游戏"></textarea></label>
         <div class="cover-block">
@@ -156,6 +156,6 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="/js/developer.js?v=1"></script>
+  <script src="/js/developer.js?v=2"></script>
 </body>
 </html>
