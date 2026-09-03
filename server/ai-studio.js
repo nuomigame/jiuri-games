@@ -184,40 +184,46 @@ function buildUserContent(title, prompt, images) {
   return text;
 }
 
+function postChat(base, key, body) {
+  return fetch(base + "/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
+    body: JSON.stringify(body),
+  });
+}
+
+// 视觉模型：把参考图转成文字描述
+async function describeImages(base, key, model, images) {
+  const content = [
+    { type: "text", text: "请用中文用一段话简要描述这几张参考图的风格、配色、题材和氛围（不超过120字）。" },
+    ...images.slice(0, 4).map((u) => ({ type: "image_url", image_url: { url: u } })),
+  ];
+  const res = await postChat(base, key, { model, messages: [{ role: "user", content }], max_tokens: 300, temperature: 0.4 });
+  if (!res.ok) return "";
+  const j = await res.json().catch(() => ({}));
+  const c = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+  return c || "";
+}
+
 async function callAI({ prompt, title, images, sourceHtml }) {
   const key = process.env.AI_API_KEY;
   if (!key) throw new Error("未配置 AI_API_KEY");
   const base = (process.env.AI_BASE_URL || "https://api.deepseek.com").replace(/\/+$/, "");
-  // 有参考图 -> 用视觉模型；否则用更强的代码生成模型
-  const hasVision = images && images.length;
-  const model = hasVision
-    ? (process.env.AI_VISION_MODEL || "deepseek-v4-flash-vision-exp")
-    : (process.env.AI_MODEL || "deepseek-chat");
+  // 若传了参考图，先用视觉模型把图转成文字描述；游戏代码始终用强代码模型生成
+  let imageDesc = "";
+  if (images && images.length) {
+    try { imageDesc = await describeImages(base, key, process.env.AI_VISION_MODEL || "deepseek-v4-flash-vision-exp", images); } catch (e) { imageDesc = ""; }
+  }
+  const model = process.env.AI_MODEL || "deepseek-chat";
   const isModify = !!sourceHtml;
   const sys = isModify
     ? "你是一个网页游戏生成器。用户要求修改某已有游戏。请在保留原玩法基础上，按用户要求重新输出一个完整、可运行、单文件 HTML5 游戏。所有 CSS/JS 内联；禁止外部库（尤其 three.js 这类 CDN）；中文界面；有开始界面和分数；用户可用文字要求 2D 或 3D（3D 用 CSS 3D 变换/Canvas 伪 3D/WebGL 实现，若难做好就做精致的 2D）。只输出完整可运行的代码本身，不要任何解释。"
     : "你是一个网页游戏生成器。请根据用户的提示词，输出一个完整、可运行、单文件 HTML5 游戏。要求：把所有 CSS 和 JavaScript 内联在一个 <html> 文件里；禁止外部库或网络请求（尤其禁止 three.js 等 CDN 库）；用中文；界面精致；有开始界面和分数。用户可以用文字要求 2D 或 3D：3D 请用 CSS 3D 变换、Canvas 伪 3D 投影或 WebGL 实现；若确实难以做出像样的 3D，就做一个精致的 2D 即可。只输出完整可运行的代码本身，不要任何额外解释。";
   const lead = isModify ? `这是对已有游戏《${title || "未命名"}》的修改要求，请重新生成一个完整可玩的游戏并体现这些改动。` : "";
-  const userText = lead + "\n需求：" + prompt;
-  const userContent = (images && images.length)
-    ? [{ type: "text", text: userText }, ...images.slice(0, 4).map((u) => ({ type: "image_url", image_url: { url: u } }))]
-    : userText;
-  const messages = [{ role: "system", content: sys }, { role: "user", content: userContent }];
-  const body = { model, temperature: 0.8, max_tokens: 10000, messages };
-  const post = (m) => fetch(base + "/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
-    body: JSON.stringify(m),
-  });
-  let res = await post(body);
-  // 若模型不支持图片，则去掉图片重试（退化为纯文字）
-  if (!res.ok && images && images.length) {
-    const noImg = messages.map((m) => ({
-      role: m.role,
-      content: typeof m.content === "string" ? m.content : (m.content || []).filter((p) => p.type === "text").map((p) => p.text).join("\n"),
-    }));
-    res = await post({ ...body, messages: noImg });
-  }
+  let userText = lead + "\n需求：" + prompt;
+  if (imageDesc) userText += "\n\n（参考图风格参考：）" + imageDesc.slice(0, 500);
+  const messages = [{ role: "system", content: sys }, { role: "user", content: userText }];
+  const res = await postChat(base, key, { model, temperature: 0.8, max_tokens: 10000, messages });
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
     throw new Error("AI 接口错误 " + res.status + " " + txt.slice(0, 200));
