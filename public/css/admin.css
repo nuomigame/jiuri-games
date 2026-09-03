@@ -124,6 +124,8 @@ img { display: block; max-width: 100%; }
 .shot button { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: rgba(10,10,12,0.7); color: #fff; border: none; cursor: pointer; font-size: 12px; line-height: 1; }
 .shot button:hover { background: var(--warm); }
 .settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 18px; }
+#settingsForm { display: block; padding: 20px 24px 24px; }
+#settingsForm .settings-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .link-cell { color: var(--accent); font-size: 13px; font-family: var(--font-mono); max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row-actions { display: inline-flex; gap: 8px; }
 .empty { padding: 40px; text-align: center; color: var(--muted); }
