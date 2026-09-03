@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/admin.css?v=5" />
+  <link rel="stylesheet" href="/css/admin.css?v=6" />
 </head>
 <body>
   <!-- Gate -->
@@ -169,6 +169,16 @@
             </div>
           </div>
         </div>
+        <div class="cover-block">
+          <span class="field-label">展示图（可选，可多张，弹窗里翻页展示）</span>
+          <div class="cover-row">
+            <div class="shot-list" id="shotsList"></div>
+            <div class="cover-controls">
+              <label class="upload-btn"><input type="file" id="shotsFile" accept="image/*" multiple hidden />添加图片</label>
+              <p class="cover-hint">最多 6 张，玩家点开游戏后会在弹窗中左右翻页查看。</p>
+            </div>
+          </div>
+        </div>
 
         <label class="field">
           <span class="field-label">标签（用逗号分隔）</span>
@@ -190,6 +200,6 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <script src="/js/admin.js?v=5"></script>
+  <script src="/js/admin.js?v=6"></script>
 </body>
 </html>

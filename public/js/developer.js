@@ -128,7 +128,25 @@
   const coverPreviewImg = $("#coverPreview img");
   const coverUrlInput = $("#coverUrl"), coverFile = $("#coverFile");
   let savedCover = DEFAULT_COVER;
+  let savedShots = [];
   function setCoverPreview(src) { coverPreviewImg.src = src || DEFAULT_COVER; }
+  function renderShots() {
+    const box = $("#shotsList");
+    box.innerHTML = savedShots.map((s, i) => `<span class="shot"><img src="${esc(s)}" alt=""><button type="button" data-i="${i}" aria-label="移除">×</button></span>`).join("");
+    box.querySelectorAll("button[data-i]").forEach((b) => b.addEventListener("click", () => { savedShots.splice(+b.dataset.i, 1); renderShots(); }));
+  }
+  $("#shotsFile").addEventListener("change", () => {
+    const files = [...$("#shotsFile").files];
+    $("#shotsFile").value = "";
+    if (!files.length) return;
+    for (const f of files) {
+      if (savedShots.length >= 6) { toast("最多 6 张展示图"); break; }
+      if (f.size > 8 * 1024 * 1024) { toast("单张图片不能超过 8MB"); continue; }
+      const r = new FileReader();
+      r.onload = (ev) => { savedShots.push(ev.target.result); renderShots(); };
+      r.readAsDataURL(f);
+    }
+  });
   function setType(t) {
     gameType = t;
     $$("#typeSwitch button").forEach((b) => b.classList.toggle("is-active", b.dataset.type === t));
@@ -151,6 +169,8 @@
       $("#featuredInput").checked = !!game.featured;
       form.querySelector('[name=id]').value = game.id || "";
       setType(game.type === "download" ? "download" : "web");
+      savedShots = Array.isArray(game.images) ? game.images.slice() : [];
+      renderShots();
       if (game.cover && /^(https?:)?\/\//i.test(game.cover)) {
         coverUrlInput.value = game.cover; setCoverPreview(game.cover);
       } else { savedCover = game.cover || DEFAULT_COVER; setCoverPreview(savedCover); }
@@ -159,6 +179,7 @@
       $("#editorTitle").textContent = "发布新游戏";
       form.reset(); form.querySelector('[name=id]').value = "";
       setType("web"); setCoverPreview(DEFAULT_COVER);
+      savedShots = []; renderShots();
     }
     $("#editor").hidden = false;
     document.body.style.overflow = "hidden";
@@ -195,6 +216,7 @@
       featured: $("#featuredInput").checked,
       cover,
       type: gameType,
+      images: savedShots,
     };
     $("#editorError").hidden = true;
     const btn = $("#saveBtn"); btn.disabled = true; btn.textContent = "保存中…";

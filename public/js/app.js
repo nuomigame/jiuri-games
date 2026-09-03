@@ -251,8 +251,10 @@
       const liked = !!g.liked;
       const isDownload = g.type === "download";
       const pending = g.status === "pending";
+      const ownerAv = g.ownerName ? (g.ownerAvatar || window.defaultAvatar(g.ownerName)) : "";
+      const ownerFb = g.ownerName ? window.defaultAvatar(g.ownerName) : "";
       return `
-        <article class="game-card" role="button" tabindex="0" data-url="${esc(url)}" data-demo="${isDemo ? "1" : ""}" data-title="${esc(g.title)}">
+        <article class="game-card" role="button" tabindex="0" data-id="${esc(g.id)}" data-url="${esc(url)}" data-demo="${isDemo ? "1" : ""}" data-title="${esc(g.title)}">
           <div class="game-cover">
             <img src="${esc(cover)}" alt="${esc(g.title)}" loading="lazy" onerror="this.src='${fallbackCover}'">
             <span class="game-cover-tag">${isDownload ? "需下载 · 电脑运行" : "网页游戏"}</span>
@@ -268,7 +270,10 @@
             </div>
             <p class="game-desc">${esc(g.description)}</p>
             <div class="game-tags">${tags}</div>
-            ${isDownload ? '<p class="game-dl-note">⬇ 需下载到电脑运行</p>' : ""}
+            <div class="game-foot">
+              ${isDownload ? '<span class="game-dl-note">⬇ 需下载到电脑运行</span>' : '<span class="game-dl-note game-web-note">▶ 点开即玩</span>'}
+              ${g.ownerName ? `<a class="game-author" href="/user/${encodeURIComponent(g.ownerName)}" title="查看 ${esc(g.ownerName)} 的主页"><img src="${esc(ownerAv)}" alt="" onerror="this.onerror=null;this.src='${ownerFb}'"><span>${esc(g.ownerName)}</span></a>` : ""}
+            </div>
           </div>
         </article>`;
     }).join("");
@@ -324,36 +329,22 @@
   // keyboard support (Enter/Space) for the card role="button"
   track.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" && e.key !== " ") return;
-    if (e.target.closest(".game-like")) return; // let the native button handle its own click
+    if (e.target.closest(".game-like") || e.target.closest(".game-author")) return;
     const card = e.target.closest(".game-card");
     if (!card) return;
     e.preventDefault();
-    if (card.dataset.demo === "1") {
-      toast(`《${card.dataset.title}》 即将上线，敬请期待`);
-      return;
-    }
-    const url = card.dataset.url;
-    if (url && /^(https?:)?\/\//i.test(url)) {
-      const win = window.open(url, "_blank", "noopener");
-      if (!win) toast("浏览器拦截了弹窗，请允许弹出窗口后重试");
-    }
+    const g = allGames.find((x) => x.id === card.dataset.id);
+    if (g) window.openGameModal(g);
   });
   track.addEventListener("click", (e) => {
     if (justDragged) { e.preventDefault(); return; }
     const likeBtn = e.target.closest(".game-like");
     if (likeBtn) { handleLike(likeBtn); return; }
+    if (e.target.closest(".game-author")) return; // let <a> navigate to profile
     const card = e.target.closest(".game-card");
     if (!card) return;
-    if (card.dataset.demo === "1") {
-      toast(`《${card.dataset.title}》 即将上线，敬请期待`);
-      return;
-    }
-    const url = card.dataset.url;
-    if (url && /^(https?:)?\/\//i.test(url)) {
-      // 只弹出新窗口，原页面保持不变
-      const win = window.open(url, "_blank", "noopener");
-      if (!win) toast("浏览器拦截了弹窗，请允许弹出窗口后重试");
-    }
+    const g = allGames.find((x) => x.id === card.dataset.id);
+    if (g) window.openGameModal(g);
   });
 
   // Refetch games when the page becomes visible again (tab switch / back /

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0a0a0c" />
+  <title>用户主页 · 爱冒险玖日</title>
+  <link rel="icon" href="/assets/img/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css?v=4" />
+</head>
+<body>
+  <header class="profile-nav">
+    <a class="brand" href="/">
+      <span class="brand-mark"><img src="/assets/img/logo.png" alt="" /></span>
+      <span class="brand-name">爱冒险玖日<em>Game Site</em></span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="/games" id="backLink">返回游戏</a>
+      <a class="btn btn-primary" href="/">进入网站</a>
+    </div>
+  </header>
+
+  <main class="profile">
+    <div class="profile-head">
+      <div class="profile-avatar"><span id="avatarSlot"></span></div>
+      <div class="profile-info">
+        <h1 class="profile-name" id="pName">…</h1>
+        <p class="profile-bio" id="pBio"></p>
+        <div class="profile-badges" id="pBadges"></div>
+        <div class="profile-actions" id="pActions" hidden>
+          <button class="btn btn-primary" id="editBtn">编辑资料</button>
+        </div>
+      </div>
+    </div>
+
+    <section class="profile-games">
+      <h2 id="gamesHeading">TA 的游戏</h2>
+      <div class="games-grid" id="gamesGrid"></div>
+      <div class="profile-empty" id="noGames" hidden>还没有发布游戏。</div>
+    </section>
+  </main>
+
+  <!-- Edit own profile modal -->
+  <div class="modal" id="editModal" hidden>
+    <div class="modal-backdrop" data-close-edit></div>
+    <div class="modal-panel">
+      <button class="modal-close" data-close-edit aria-label="关闭">×</button>
+      <p class="kicker">个人资料</p>
+      <h2 class="modal-title">编辑资料</h2>
+      <form class="auth-form" id="editForm">
+        <div class="cover-block">
+          <span class="field-label">头像</span>
+          <div class="cover-row">
+            <div class="cover-preview" id="avatarPreview"><img src="" alt="" /></div>
+            <div class="cover-controls">
+              <label class="upload-btn"><input type="file" id="avatarFile" accept="image/*" hidden />上传头像</label>
+              <p class="cover-hint">支持 JPG / PNG / WebP，小于 8MB。也可粘贴图片链接：</p>
+              <input type="text" id="avatarUrl" placeholder="https://... 头像链接" />
+            </div>
+          </div>
+        </div>
+        <label class="field"><span class="field-label">个人简介</span><textarea name="bio" id="bioInput" rows="3" maxlength="240" placeholder="介绍一下你自己"></textarea></label>
+        <p class="form-error" id="editError" hidden></p>
+        <button type="submit" class="btn btn-primary btn-block" id="editSave">保存资料</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Game detail modal -->
+  <div class="modal game-modal" id="gameModal" hidden>
+    <div class="modal-backdrop" data-close-game></div>
+    <div class="modal-panel gm-panel">
+      <button class="modal-close" data-close-game aria-label="关闭">×</button>
+      <div class="gm-gallery">
+        <button class="gm-nav" id="gmPrev" aria-label="上一张">‹</button>
+        <img id="gmImage" src="" alt="">
+        <button class="gm-nav" id="gmNext" aria-label="下一张">›</button>
+        <div class="gm-dots" id="gmDots"></div>
+        <span class="gm-counter" id="gmCounter">1 / 1</span>
+      </div>
+      <div class="gm-info">
+        <h2 class="gm-title" id="gmTitle"></h2>
+        <div class="gm-meta">
+          <span class="gm-type" id="gmType"></span>
+          <span class="gm-author-wrap" id="gmAuthor"></span>
+          <span class="gm-likes" id="gmLikes">♥ 0</span>
+        </div>
+        <p class="gm-desc" id="gmDesc"></p>
+        <div class="gm-tags" id="gmTags"></div>
+        <a class="btn btn-primary btn-block gm-play" id="gmPlay" href="#" target="_blank" rel="noopener">开始游戏</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="/js/game-modal.js?v=1"></script>
+  <script src="/js/user.js?v=1"></script>
+</body>
+</html>

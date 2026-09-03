@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css?v=3" />
+  <link rel="stylesheet" href="/css/style.css?v=4" />
 </head>
 <body>
   <div class="site-grain" aria-hidden="true"></div>
@@ -233,8 +233,35 @@
     </div>
   </div>
 
+  <!-- ============ GAME DETAIL MODAL ============ -->
+  <div class="modal game-modal" id="gameModal" hidden>
+    <div class="modal-backdrop" data-close-game></div>
+    <div class="modal-panel gm-panel">
+      <button class="modal-close" data-close-game aria-label="关闭">×</button>
+      <div class="gm-gallery">
+        <button class="gm-nav" id="gmPrev" aria-label="上一张">‹</button>
+        <img id="gmImage" src="" alt="">
+        <button class="gm-nav" id="gmNext" aria-label="下一张">›</button>
+        <div class="gm-dots" id="gmDots"></div>
+        <span class="gm-counter" id="gmCounter">1 / 1</span>
+      </div>
+      <div class="gm-info">
+        <h2 class="gm-title" id="gmTitle"></h2>
+        <div class="gm-meta">
+          <span class="gm-type" id="gmType"></span>
+          <span class="gm-author-wrap" id="gmAuthor"></span>
+          <span class="gm-likes" id="gmLikes">♥ 0</span>
+        </div>
+        <p class="gm-desc" id="gmDesc"></p>
+        <div class="gm-tags" id="gmTags"></div>
+        <a class="btn btn-primary btn-block gm-play" id="gmPlay" href="#" target="_blank" rel="noopener">开始游戏</a>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast" hidden></div>
 
-  <script src="/js/app.js?v=7"></script>
+  <script src="/js/game-modal.js?v=1"></script>
+  <script src="/js/app.js?v=8"></script>
 </body>
 </html>

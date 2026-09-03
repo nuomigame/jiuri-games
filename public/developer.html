@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/admin.css?v=4" />
+  <link rel="stylesheet" href="/css/admin.css?v=6" />
   <style>
     .apply-card { max-width: 640px; margin: 40px auto; }
     .apply-card .lead { color: var(--muted); line-height: 1.7; margin: -6px 0 20px; }
@@ -131,6 +131,16 @@
               <label class="upload-btn"><input type="file" id="coverFile" accept="image/*" hidden />上传封面</label>
               <p class="cover-hint">支持 JPG / PNG / WebP，小于 8MB。也可直接粘贴图片链接：</p>
               <input type="text" id="coverUrl" placeholder="https://... 或直接填链接" />
+            </div>
+          </div>
+        </div>
+        <div class="cover-block">
+          <span class="field-label">展示图（可选，可多张，弹窗里翻页展示）</span>
+          <div class="cover-row">
+            <div class="shot-list" id="shotsList"></div>
+            <div class="cover-controls">
+              <label class="upload-btn"><input type="file" id="shotsFile" accept="image/*" multiple hidden />添加图片</label>
+              <p class="cover-hint">最多 6 张，玩家点开游戏后会在弹窗中左右翻页查看。</p>
             </div>
           </div>
         </div>
