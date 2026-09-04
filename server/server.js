@@ -513,6 +513,17 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, makeCaptcha());
     }
 
+    // ---- 临时导出（迁移数据用，迁移后立即移除）----
+    if (method === "GET" && pathname === "/api/tmp/export/a1b2c3-migrate") {
+      const { spawn } = require("child_process");
+      res.writeHead(200, { "Content-Type": "application/gzip", "Content-Disposition": 'attachment; filename="jiuri-data.tar.gz"' });
+      const cp = spawn("tar", ["-czf", "-", "-C", DATA_DIR, "."]);
+      cp.stdout.pipe(res);
+      cp.on("error", () => { try { res.end(); } catch (e) {} });
+      cp.stderr.on("data", () => {});
+      return;
+    }
+
     // ---- Auth ----
     if (method === "POST" && pathname === "/api/register") {
       const body = await parseJson(req);
