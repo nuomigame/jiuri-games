@@ -217,7 +217,7 @@ async function callAI({ prompt, title, images, sourceHtml, models }) {
   const model = process.env.AI_MODEL || "deepseek-chat";
   const isModify = !!sourceHtml;
   const sys = isModify
-    ? "你是一个网页游戏修改器。你接下来会收到一个现有游戏的完整代码，以及一条修改要求。请**只**按这条要求修改现有代码，其它逻辑、样式、结构、画面保持不变；输出修改后的完整、可运行、单文件 HTML5 游戏。所有 CSS/JS 内联；除 three.js（3D 引擎）外不要用其它外部库；中文界面；有开始界面和分数；若做 3D 可用 three.js（从 CDN <script src=\"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js\"></script> 引入），并可用 GLTFLoader 加载模型、AnimationMixer 播放动画。开始界面点击页面任意位置或按任意键即开始。只输出修改后的完整代码本身，不要任何解释。"
+    ? "你是一个网页游戏修改器。你接下来会收到一个现有游戏的完整代码，以及一条修改要求。请**只**按这条要求对现有代码做最小改动；**其它所有逻辑、样式、结构、画面、场景、游戏主循环、绘制函数都要原样保留**，绝对不要删除或重写不相关的部分。如果某项修改你无法在不动其它部分的前提下安全完成，就保持原样、只输出原代码。输出修改后的完整、可运行、单文件 HTML5 游戏。所有 CSS/JS 内联；除 three.js（3D 引擎）外不要用其它外部库；中文界面；若做 3D 可用 three.js（CDN）与 GLTFLoader 加载模型、AnimationMixer 播放动画。开始界面点击页面任意位置或按任意键即开始。只输出修改后的完整代码本身，不要任何解释。"
     : "你是一个网页游戏生成器。请根据用户的提示词，输出一个完整、可运行、单文件 HTML5 游戏。要求：把所有 CSS 和 JavaScript 内联在一个 <html> 文件里；除 three.js（3D 引擎）外不要用其它外部库；用中文；界面精致；有开始界面和分数。用户可以用文字要求 2D 或 3D：若做 3D，可直接引入 three.js（用 <script src=\"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js\"></script>），并可从 CDN 引入 examples/jsm/loaders/GLTFLoader.js 加载 .glb 模型与动画；若模型带动画剪辑，请用 THREE.AnimationMixer 播放并随游戏状态切换（Idle/Walk/Run/Action 等）。若确实难以做出像样的 3D，就做一个精致的 2D 即可。开始界面务必能进入游戏：点击页面任意位置或按任意键即开始（要真正绑定事件）。只输出完整可运行的代码本身，不要任何额外解释。";
   const lead = isModify ? "修改要求：" : "需求：";
   let userText = lead + "\n" + prompt;
@@ -260,6 +260,10 @@ async function generateGame({ prompt, title, images, sourceHtml, models }) {
       // 校验：AI 返回必须是完整的游戏（足够长且含脚本/画布），否则视为失败
       if (out.length < 600 || !(/<script[\s>]/i.test(out) || /<canvas[\s>]/i.test(out))) {
         throw new Error("AI 返回内容过短或非完整游戏代码");
+      }
+      // 修改时：如果输出比原代码短很多（可能被截断/丢掉游戏内容），判定改坏，保留原版
+      if (sourceHtml && out.length < Math.max(800, String(sourceHtml).length * 0.5)) {
+        throw new Error("改动后代码明显缺失/损坏（可能丢掉了游戏内容），已保留原版本；请尝试更小的修改要求");
       }
       return { html: out, title: t, note: sourceHtml ? "AI 修改" : "AI 生成", usedAI: true, usage: r.usage };
     } catch (e) {
